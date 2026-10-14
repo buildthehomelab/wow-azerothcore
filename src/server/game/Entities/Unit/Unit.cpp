@@ -8139,7 +8139,7 @@ void Unit::SendHealSpellLog(HealInfo const& healInfo, bool critical)
 int32 Unit::HealBySpell(HealInfo& healInfo, bool critical)
 {
     uint32 heal = healInfo.GetHeal();
-    sScriptMgr->ModifyHealReceived(this, healInfo.GetTarget(), heal, healInfo.GetSpellInfo());
+    sScriptMgr->ModifyHealReceived(healInfo.GetTarget(), this, heal, healInfo.GetSpellInfo());
     healInfo.SetHeal(heal);
 
     // calculate heal absorb and reduce healing
