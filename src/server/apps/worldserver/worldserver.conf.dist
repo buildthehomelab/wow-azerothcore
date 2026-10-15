@@ -1076,11 +1076,12 @@ MaxCoreStuckTime = 0
 #    SignalShutdownDelay
 #        Description: Time (in seconds) between SIGTERM (docker stop, systemctl stop) and the
 #                     shutdown. Players see the usual shutdown countdown, then are saved and
-#                     logged out. The server stops 5 seconds after this time at the latest, even
-#                     if the countdown is cancelled or changed in game, or is an idle shutdown.
-#                     SIGINT (Ctrl+C), a second SIGTERM (docker stop sends only one; use
-#                     docker kill -s TERM) or a signal during startup stops at once. Read at
-#                     startup only. Keep the stop timeout (Docker stop_grace_period, systemd
+#                     logged out. The server stops about 5 seconds after this time even if the
+#                     countdown is cancelled or changed in game, or an idle shutdown (which shows
+#                     no countdown) was pending. SIGINT (Ctrl+C) or a second SIGTERM (docker stop
+#                     sends only one; use docker kill -s TERM) stops at once; a signal during
+#                     startup stops the server as soon as loading finishes. Read at startup only,
+#                     at most 86400. Keep the stop timeout (Docker stop_grace_period, systemd
 #                     TimeoutStopSec) above this plus the time saving everyone takes.
 #        Default:     0  - (Disabled, stop at once)
 #                     1+ - (Enabled)

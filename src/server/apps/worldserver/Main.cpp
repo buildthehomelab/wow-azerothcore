@@ -57,6 +57,7 @@
 #include "libsidecar.h"
 #include <boost/asio/signal_set.hpp>
 #include <boost/program_options.hpp>
+#include <algorithm>
 #include <atomic>
 #include <csignal>
 #include <filesystem>
@@ -114,6 +115,7 @@ private:
 static uint32 signalShutdownDelay = 0;
 static std::atomic<bool> worldLoopRunning(false);
 static std::atomic<bool> signalShutdownRequested(false);
+static std::atomic<uint32> signalShutdownTime(0);
 
 void WaitForSignal(boost::asio::signal_set& signals);
 void SignalHandler(boost::asio::signal_set& signals, boost::system::error_code const& error, int signalNumber);
@@ -245,7 +247,7 @@ int main(int argc, char** argv)
 #if AC_PLATFORM == AC_PLATFORM_WINDOWS
     signals.add(SIGBREAK);
 #endif
-    signalShutdownDelay = uint32(std::max(sConfigMgr->GetOption<int32>("SignalShutdownDelay", 0), 0));
+    signalShutdownDelay = uint32(std::clamp(sConfigMgr->GetOption<int32>("SignalShutdownDelay", 0), 0, int32(DAY)));
     WaitForSignal(signals);
 
     // Start the Boost based thread pool
@@ -609,7 +611,6 @@ void WorldUpdateLoop()
 
     worldLoopRunning = true;
     bool signalShutdownStarted = false;
-    uint32 signalShutdownStartTime = 0;
 
     ///- While we have not World::m_stopEvent, update the world
     while (!World::IsStopped())
@@ -619,7 +620,6 @@ void WorldUpdateLoop()
             if (!signalShutdownStarted)
             {
                 signalShutdownStarted = true;
-                signalShutdownStartTime = getMSTime();
                 // Never push back a shutdown that is already due sooner
                 if (!sWorld->IsShuttingDown() || sWorld->GetShutDownTimeLeft() > signalShutdownDelay)
                     sWorld->ShutdownServ(signalShutdownDelay, 0, SHUTDOWN_EXIT_CODE);
@@ -627,7 +627,7 @@ void WorldUpdateLoop()
             // Whoever sent the signal kills the process when its own timeout runs out, so stop by the
             // deadline even if the countdown was cancelled or lengthened (.server shutdown), deferred
             // (Wintergrasp.DeferShutdownTimer) or is an idle shutdown waiting for an empty server
-            else if (getMSTimeDiff(signalShutdownStartTime, getMSTime()) > (signalShutdownDelay + 5) * 1000)
+            else if (getMSTimeDiff(signalShutdownTime, getMSTime()) > (signalShutdownDelay + 5) * 1000)
             {
                 LOG_WARN("server.worldserver", "Shutdown requested by SIGTERM is overdue, stopping now");
                 World::StopNow(SHUTDOWN_EXIT_CODE);
@@ -682,8 +682,11 @@ void SignalHandler(boost::asio::signal_set& signals, boost::system::error_code c
 
     // The first SIGTERM once the world is running gets the countdown; Ctrl+C (SIGINT), a second
     // signal or one during startup stops at once
-    if (signalNumber == SIGTERM && signalShutdownDelay && worldLoopRunning && !signalShutdownRequested.exchange(true))
+    if (signalNumber == SIGTERM && signalShutdownDelay && worldLoopRunning && !signalShutdownRequested)
     {
+        // The deadline counts from the signal, the clock the sender's timeout runs on
+        signalShutdownTime = getMSTime();
+        signalShutdownRequested = true;
         LOG_INFO("server.worldserver", "SIGTERM received, shutting down in {} seconds (send it again to stop now)", signalShutdownDelay);
         WaitForSignal(signals);
         return;
