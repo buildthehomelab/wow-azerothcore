@@ -57,6 +57,8 @@
 #include "libsidecar.h"
 #include <boost/asio/signal_set.hpp>
 #include <boost/program_options.hpp>
+#include <algorithm>
+#include <atomic>
 #include <csignal>
 #include <filesystem>
 #include <iostream>
@@ -108,7 +110,15 @@ private:
     uint32 _maxCoreStuckTimeInMs;
 };
 
-void SignalHandler(boost::system::error_code const& error, int signalNumber);
+// SIGTERM (docker stop, systemd) starts a shutdown countdown of SignalShutdownDelay seconds
+// that warns players, instead of stopping at once
+static uint32 signalShutdownDelay = 0;
+static std::atomic<bool> worldLoopRunning(false);
+static std::atomic<bool> signalShutdownRequested(false);
+static std::atomic<uint32> signalShutdownTime(0);
+
+void WaitForSignal(boost::asio::signal_set& signals);
+void SignalHandler(boost::asio::signal_set& signals, boost::system::error_code const& error, int signalNumber);
 void ClearOnlineAccounts();
 bool StartDB();
 void StopDB();
@@ -237,7 +247,8 @@ int main(int argc, char** argv)
 #if AC_PLATFORM == AC_PLATFORM_WINDOWS
     signals.add(SIGBREAK);
 #endif
-    signals.async_wait(SignalHandler);
+    signalShutdownDelay = uint32(std::clamp(sConfigMgr->GetOption<int32>("SignalShutdownDelay", 0), 0, int32(DAY)));
+    WaitForSignal(signals);
 
     // Start the Boost based thread pool
     int numThreads = sConfigMgr->GetOption<int32>("ThreadPool", 2);
@@ -598,9 +609,31 @@ void WorldUpdateLoop()
 
     sScriptMgr->OnDatabaseWarnAboutSyncQueries(true);
 
+    worldLoopRunning = true;
+    bool signalShutdownStarted = false;
+
     ///- While we have not World::m_stopEvent, update the world
     while (!World::IsStopped())
     {
+        if (signalShutdownRequested)
+        {
+            if (!signalShutdownStarted)
+            {
+                signalShutdownStarted = true;
+                // Never push back a shutdown that is already due sooner
+                if (!sWorld->IsShuttingDown() || sWorld->GetShutDownTimeLeft() > signalShutdownDelay)
+                    sWorld->ShutdownServ(signalShutdownDelay, 0, SHUTDOWN_EXIT_CODE);
+            }
+            // Whoever sent the signal kills the process when its own timeout runs out, so stop by the
+            // deadline even if the countdown was cancelled or lengthened (.server shutdown), deferred
+            // (Wintergrasp.DeferShutdownTimer) or is an idle shutdown waiting for an empty server
+            else if (getMSTimeDiff(signalShutdownTime, getMSTime()) > (signalShutdownDelay + 5) * 1000)
+            {
+                LOG_WARN("server.worldserver", "Shutdown requested by SIGTERM is overdue, stopping now");
+                World::StopNow(SHUTDOWN_EXIT_CODE);
+            }
+        }
+
         ++World::m_worldLoopCounter;
         realCurrTime = getMSTime();
 
@@ -634,10 +667,32 @@ void WorldUpdateLoop()
     WorldDatabase.WarnAboutSyncQueries(false);
 }
 
-void SignalHandler(boost::system::error_code const& error, int /*signalNumber*/)
+void WaitForSignal(boost::asio::signal_set& signals)
 {
-    if (!error)
-        World::StopNow(SHUTDOWN_EXIT_CODE);
+    signals.async_wait([&signals](boost::system::error_code const& error, int signalNumber)
+    {
+        SignalHandler(signals, error, signalNumber);
+    });
+}
+
+void SignalHandler(boost::asio::signal_set& signals, boost::system::error_code const& error, int signalNumber)
+{
+    if (error)
+        return;
+
+    // The first SIGTERM once the world is running gets the countdown; Ctrl+C (SIGINT), a second
+    // signal or one during startup stops at once
+    if (signalNumber == SIGTERM && signalShutdownDelay && worldLoopRunning && !signalShutdownRequested)
+    {
+        // The deadline counts from the signal, the clock the sender's timeout runs on
+        signalShutdownTime = getMSTime();
+        signalShutdownRequested = true;
+        LOG_INFO("server.worldserver", "SIGTERM received, shutting down in {} seconds (send it again to stop now)", signalShutdownDelay);
+        WaitForSignal(signals);
+        return;
+    }
+
+    World::StopNow(SHUTDOWN_EXIT_CODE);
 }
 
 void FreezeDetector::Handler(std::weak_ptr<FreezeDetector> freezeDetectorRef, boost::system::error_code const& error)
