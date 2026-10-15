@@ -108,7 +108,14 @@ private:
     uint32 _maxCoreStuckTimeInMs;
 };
 
-void SignalHandler(boost::system::error_code const& error, int signalNumber);
+// SIGTERM (docker stop, systemd) starts a shutdown countdown of SignalShutdownDelay seconds
+// that warns players, instead of stopping at once
+uint32 signalShutdownDelay = 0;
+std::atomic<bool> worldLoopRunning(false);
+std::atomic<bool> signalShutdownRequested(false);
+
+void WaitForSignal(boost::asio::signal_set& signals);
+void SignalHandler(boost::asio::signal_set& signals, boost::system::error_code const& error, int signalNumber);
 void ClearOnlineAccounts();
 bool StartDB();
 void StopDB();
@@ -237,7 +244,8 @@ int main(int argc, char** argv)
 #if AC_PLATFORM == AC_PLATFORM_WINDOWS
     signals.add(SIGBREAK);
 #endif
-    signals.async_wait(SignalHandler);
+    signalShutdownDelay = uint32(std::max(sConfigMgr->GetOption<int32>("SignalShutdownDelay", 0), 0));
+    WaitForSignal(signals);
 
     // Start the Boost based thread pool
     int numThreads = sConfigMgr->GetOption<int32>("ThreadPool", 2);
@@ -598,9 +606,20 @@ void WorldUpdateLoop()
 
     sScriptMgr->OnDatabaseWarnAboutSyncQueries(true);
 
+    worldLoopRunning = true;
+    bool signalShutdownStarted = false;
+
     ///- While we have not World::m_stopEvent, update the world
     while (!World::IsStopped())
     {
+        if (signalShutdownRequested && !signalShutdownStarted)
+        {
+            signalShutdownStarted = true;
+            // Never push back a shutdown that is already due sooner
+            if (!sWorld->IsShuttingDown() || sWorld->GetShutDownTimeLeft() > signalShutdownDelay)
+                sWorld->ShutdownServ(signalShutdownDelay, 0, SHUTDOWN_EXIT_CODE);
+        }
+
         ++World::m_worldLoopCounter;
         realCurrTime = getMSTime();
 
@@ -634,10 +653,29 @@ void WorldUpdateLoop()
     WorldDatabase.WarnAboutSyncQueries(false);
 }
 
-void SignalHandler(boost::system::error_code const& error, int /*signalNumber*/)
+void WaitForSignal(boost::asio::signal_set& signals)
 {
-    if (!error)
-        World::StopNow(SHUTDOWN_EXIT_CODE);
+    signals.async_wait([&signals](boost::system::error_code const& error, int signalNumber)
+    {
+        SignalHandler(signals, error, signalNumber);
+    });
+}
+
+void SignalHandler(boost::asio::signal_set& signals, boost::system::error_code const& error, int signalNumber)
+{
+    if (error)
+        return;
+
+    // The first SIGTERM once the world is running gets the countdown; Ctrl+C (SIGINT), a second
+    // signal or one during startup stops at once
+    if (signalNumber == SIGTERM && signalShutdownDelay && worldLoopRunning && !signalShutdownRequested.exchange(true))
+    {
+        LOG_INFO("server.worldserver", "SIGTERM received, shutting down in {} seconds (send it again to stop now)", signalShutdownDelay);
+        WaitForSignal(signals);
+        return;
+    }
+
+    World::StopNow(SHUTDOWN_EXIT_CODE);
 }
 
 void FreezeDetector::Handler(std::weak_ptr<FreezeDetector> freezeDetectorRef, boost::system::error_code const& error)

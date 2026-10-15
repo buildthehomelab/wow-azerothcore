@@ -1073,6 +1073,18 @@ UpdateUptimeInterval = 10
 MaxCoreStuckTime = 0
 
 #
+#    SignalShutdownDelay
+#        Description: Time (in seconds) between SIGTERM (docker stop, systemctl stop) and the
+#                     shutdown. Players see the usual shutdown countdown, then are saved and
+#                     logged out. A second signal, or SIGINT (Ctrl+C), stops at once. Keep the
+#                     stop timeout (Docker stop_grace_period, systemd TimeoutStopSec) above this
+#                     plus the time saving everyone takes.
+#        Default:     0  - (Disabled, stop at once)
+#                     1+ - (Enabled)
+
+SignalShutdownDelay = 0
+
+#
 #    SaveRespawnTimeImmediately
 #        Description: Save respawn time for creatures at death and gameobjects at use/open.
 #        Default:     1 - (Enabled, Save respawn time immediately)
