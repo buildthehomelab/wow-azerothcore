@@ -2359,10 +2359,14 @@ namespace lfg
                 continue;
             }
 
-            // Record dungeon cooldown for this player (the actual dungeon completed, not the random entry)
-            AddDungeonCooldown(guid, dungeonId);
-
             Player* player = ObjectAccessor::FindPlayer(guid);
+
+            // Record dungeon cooldown for this player (the actual dungeon completed, not the random entry).
+            // Bots (headless sessions) record none: the cooldown is checked for every member of a
+            // proposal, so a bot's runs would keep dungeons the real players have not done out of the pick.
+            if (!player || !player->GetSession()->IsHeadless())
+                AddDungeonCooldown(guid, dungeonId);
+
             if (!player || player->FindMap() != currMap) // pussywizard: currMap - multithreading crash if on other map (map id check is not enough, binding system is not reliable)
             {
                 LOG_DEBUG("lfg", "LFGMgr::FinishDungeon: [{}] not found in world", guid.ToString());
