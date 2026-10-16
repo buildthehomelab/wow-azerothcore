@@ -1004,6 +1004,11 @@ void ScriptMgr::OnPlayerAfterTrainSpell(Player* player, Creature* trainer, uint3
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_AFTER_TRAIN_SPELL, script->OnPlayerAfterTrainSpell(player, trainer, spellId));
 }
 
+void ScriptMgr::OnPlayerTaxiFlightSpeed(Player* player, float& speed)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_TAXI_FLIGHT_SPEED, script->OnPlayerTaxiFlightSpeed(player, speed));
+}
+
 PlayerScript::PlayerScript(char const* name, std::vector<uint16> enabledHooks)
     : ScriptObject(name, PLAYERHOOK_END)
 {

@@ -235,6 +235,7 @@ enum PlayerHook
     PLAYERHOOK_ON_BEFORE_RECEIVE_SPELL_LIST_FROM_TRAINER,
     PLAYERHOOK_ON_GET_TRAINER_SPELL_STATE,
     PLAYERHOOK_ON_AFTER_TRAIN_SPELL,
+    PLAYERHOOK_ON_TAXI_FLIGHT_SPEED,
     PLAYERHOOK_END
 };
 
@@ -966,6 +967,14 @@ public:
      * @param spellId The id of the trainer spell that was bought
      */
     virtual void OnPlayerAfterTrainSpell(Player* /*player*/, Creature* /*trainer*/, uint32 /*spellId*/) {}
+
+    /**
+     * @brief This hook is called when a flight path starts or restarts, and can change how fast the player flies.
+     *
+     * @param player Contains information about the Player
+     * @param speed The flight speed, TaxiFlightSpeed from the config to start with
+     */
+    virtual void OnPlayerTaxiFlightSpeed(Player* /*player*/, float& /*speed*/) {}
 };
 
 #endif

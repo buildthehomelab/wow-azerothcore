@@ -27,6 +27,7 @@
 #include "Player.h"
 #include "Spell.h"
 #include "Transport.h"
+#include "ScriptMgr.h"
 #include "SmartScriptMgr.h"
 #include "World.h"
 
@@ -713,7 +714,10 @@ void FlightPathMovementGenerator::DoReset(Player* player)
     }
     init.SetFirstPointId(GetCurrentNode());
     init.SetFly();
-    init.SetVelocity(sWorld->getFloatConfig(CONFIG_TAXI_FLIGHT_SPEED));
+    float const configSpeed = sWorld->getFloatConfig(CONFIG_TAXI_FLIGHT_SPEED);
+    float speed = configSpeed;
+    sScriptMgr->OnPlayerTaxiFlightSpeed(player, speed);
+    init.SetVelocity(speed > 0.0f ? speed : configSpeed);
     init.Launch();
 }
 
