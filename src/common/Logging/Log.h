@@ -64,6 +64,9 @@ public:
     void Initialize(Acore::Asio::IoContext* ioContext = nullptr);
     void SetSynchronous();  // Not threadsafe - should only be called from main() after all threads are joined
     void LoadFromConfig();
+    // Adds the appenders and loggers in the config that are not set up yet: the module
+    // configs load after Initialize, so theirs are only seen here or on a config reload
+    void LoadNewFromConfig();
     void Close();
     [[nodiscard]] bool ShouldLog(std::string const& type, LogLevel level) const;
     bool SetLogLevel(std::string const& name, int32 level, bool isLogger = true);

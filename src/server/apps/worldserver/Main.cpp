@@ -280,6 +280,9 @@ int main(int argc, char** argv)
     // Loading modules configs before scripts
     sConfigMgr->LoadModulesConfigs();
 
+    // The log was set up before the module configs were read: add the appenders and loggers they define
+    sLog->LoadNewFromConfig();
+
     sScriptMgr->SetScriptLoader(AddScripts);
     sScriptMgr->SetModulesLoader(AddModulesScripts);
 

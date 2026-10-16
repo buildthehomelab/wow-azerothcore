@@ -160,6 +160,8 @@ void Log::CreateLoggerFromConfig(std::string const& appenderName)
     if (level > NUM_ENABLED_LOG_LEVELS)
     {
         fmt::print(stderr, "Log::CreateLoggerFromConfig: Wrong Log Level '{}' for logger {}\n", tokens[0], name);
+        // No empty entry left behind: SetLogLevel walks every logger.
+        loggers.erase(name);
         return;
     }
 
@@ -189,6 +191,25 @@ void Log::ReadAppendersFromConfig()
     for (std::string const& appenderName : keys)
     {
         CreateAppenderFromConfig(appenderName);
+    }
+}
+
+void Log::LoadNewFromConfig()
+{
+    for (std::string const& key : sConfigMgr->GetKeysByString("Appender."))
+    {
+        if (!GetAppenderByName(std::string_view(key).substr(9)))
+        {
+            CreateAppenderFromConfig(key);
+        }
+    }
+
+    for (std::string const& key : sConfigMgr->GetKeysByString("Logger."))
+    {
+        if (loggers.find(key.substr(7)) == loggers.end())
+        {
+            CreateLoggerFromConfig(key);
+        }
     }
 }
 
