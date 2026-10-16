@@ -160,6 +160,8 @@ void Log::CreateLoggerFromConfig(std::string const& appenderName)
     if (level > NUM_ENABLED_LOG_LEVELS)
     {
         fmt::print(stderr, "Log::CreateLoggerFromConfig: Wrong Log Level '{}' for logger {}\n", tokens[0], name);
+        // No empty entry left behind: SetLogLevel walks every logger.
+        loggers.erase(name);
         return;
     }
 
