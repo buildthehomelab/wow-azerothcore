@@ -11246,7 +11246,10 @@ void Unit::AtTargetAttacked(Unit* target, bool canInitialAggro)
 
     Player* myPlayerOwner = GetCharmerOrOwnerPlayerOrPlayerItself();
     Player* targetPlayerOwner = target->GetCharmerOrOwnerPlayerOrPlayerItself();
-    if (myPlayerOwner && targetPlayerOwner && !(myPlayerOwner->duel && myPlayerOwner->duel->Opponent == targetPlayerOwner))
+    // A player mind controlled by a creature fights for that creature: hitting them,
+    // or being hit by them, is PvE and must not flag anyone (cross-faction raids)
+    if (myPlayerOwner && targetPlayerOwner && !(myPlayerOwner->duel && myPlayerOwner->duel->Opponent == targetPlayerOwner)
+        && !myPlayerOwner->IsCharmedByCreature() && !targetPlayerOwner->IsCharmedByCreature())
     {
         myPlayerOwner->UpdatePvP(true);
         myPlayerOwner->SetContestedPvP(targetPlayerOwner);
@@ -14545,6 +14548,22 @@ void Unit::RemoveCharmedBy(Unit* charmer)
     if (Player* player = ToPlayer())
     {
         sScriptMgr->AnticheatSetUnderACKmount(player);
+
+        // Cross-faction raids: while a creature controlled this player, raid members'
+        // units (players, pets, totems) reached them with their real faction, and the
+        // per-viewer faction spoof only goes out when those fields change. Resend them.
+        if (!charmer->IsCharmedOwnedByPlayerOrPlayer() && sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GROUP) && player->GetGroup())
+        {
+            player->DoForAllVisibleWorldObjects([player](WorldObject* object)
+            {
+                Unit* unit = object->ToUnit();
+                if (unit && unit->IsControlledByPlayer() && unit->IsInRaidWith(player))
+                {
+                    unit->ForceValuesUpdateAtIndex(UNIT_FIELD_FACTIONTEMPLATE);
+                    unit->ForceValuesUpdateAtIndex(UNIT_FIELD_BYTES_2);
+                }
+            });
+        }
     }
 
     // xinef: restore threat
@@ -14691,6 +14710,16 @@ bool Unit::IsInPartyWith(Unit const* unit) const
         return true;
     else
         return false;
+}
+
+bool Unit::IsCharmedByCreature() const
+{
+    if (!IsCharmed() || GetCharmerGUID().IsPlayer())
+        return false;
+
+    // a creature that a player controls (priest mind control) still counts as that player
+    Unit const* charmer = GetCharmer();
+    return !charmer || !charmer->IsCharmedOwnedByPlayerOrPlayer();
 }
 
 bool Unit::IsInRaidWith(Unit const* unit) const

@@ -1316,6 +1316,8 @@ public:
     [[nodiscard]] bool IsCreatedByPlayer() const { return m_CreatedByPlayer; }
     [[nodiscard]] bool IsCharmedOwnedByPlayerOrPlayer() const { return GetCharmerOrOwnerOrOwnGUID().IsPlayer(); }
     [[nodiscard]] bool IsCharmed() const { return GetCharmerGUID(); }
+    // Charmed by a creature no player controls (boss mind control): that fight is PvE, not PvP
+    [[nodiscard]] bool IsCharmedByCreature() const;
     [[nodiscard]] bool isPossessed() const { return HasUnitState(UNIT_STATE_POSSESSED); }
     [[nodiscard]] bool isPossessedByPlayer() const { return HasUnitState(UNIT_STATE_POSSESSED) && GetCharmerGUID().IsPlayer(); }
     [[nodiscard]] bool isPossessing() const

@@ -3072,7 +3072,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // if target is fallged for pvp also flag caster if a player
         // xinef: do not flag spells with aura bind sight (no special attribute)
         if (effectUnit->IsPvP() && effectUnit != m_caster && effectUnit->GetOwnerGUID() != m_caster->GetGUID() &&
-            unitCaster && unitCaster->IsPlayer() && !m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NO_PVP_FLAG))
+            unitCaster && unitCaster->IsPlayer() && !m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NO_PVP_FLAG) &&
+            !unitCaster->IsCharmedByCreature() && !effectUnit->IsCharmedByCreature())
         {
             unitCaster->ToPlayer()->UpdatePvP(true);
         }
