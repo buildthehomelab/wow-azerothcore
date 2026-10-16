@@ -171,6 +171,7 @@ namespace lfg
         if (!sWorld->getIntConfig(CONFIG_LFG_DUNGEON_SELECTION_COOLDOWN))
             return;
 
+        std::lock_guard<std::mutex> lock(DungeonCooldownLock);
         DungeonCooldownStore[guid][dungeonId] = GameTime::Now();
     }
 
@@ -181,6 +182,7 @@ namespace lfg
 
         Seconds cooldownDuration = GetDungeonCooldownDuration();
 
+        std::lock_guard<std::mutex> lock(DungeonCooldownLock);
         for (auto itPlayer = DungeonCooldownStore.begin(); itPlayer != DungeonCooldownStore.end(); )
         {
             for (auto itDungeon = itPlayer->second.begin(); itDungeon != itPlayer->second.end(); )
@@ -200,6 +202,7 @@ namespace lfg
 
     void LFGMgr::ClearDungeonCooldowns()
     {
+        std::lock_guard<std::mutex> lock(DungeonCooldownLock);
         DungeonCooldownStore.clear();
     }
 
@@ -215,6 +218,7 @@ namespace lfg
 
         Seconds cooldownDuration = GetDungeonCooldownDuration();
 
+        std::lock_guard<std::mutex> lock(DungeonCooldownLock);
         LfgDungeonSet filtered;
         for (uint32 dungeonId : dungeons)
         {
@@ -2364,7 +2368,9 @@ namespace lfg
             // Record dungeon cooldown for this player (the actual dungeon completed, not the random entry).
             // Bots (headless sessions) record none: the cooldown is checked for every member of a
             // proposal, so a bot's runs would keep dungeons the real players have not done out of the pick.
-            if (!player || !player->GetSession()->IsHeadless())
+            // FindConnectedPlayer also finds a bot that is out of the world (e.g. mid teleport).
+            Player* connected = player ? player : ObjectAccessor::FindConnectedPlayer(guid);
+            if (!connected || !connected->GetSession()->IsHeadless())
                 AddDungeonCooldown(guid, dungeonId);
 
             if (!player || player->FindMap() != currMap) // pussywizard: currMap - multithreading crash if on other map (map id check is not enough, binding system is not reliable)

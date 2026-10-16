@@ -18,6 +18,7 @@
 #ifndef _LFGMGR_H
 #define _LFGMGR_H
 
+#include <mutex>
 #include <utility>
 
 #include "ByteBuffer.h"
@@ -652,6 +653,7 @@ namespace lfg
         typedef std::unordered_map<uint32 /*dungeonId*/, TimePoint /*completionTime*/> LfgDungeonCooldownMap;
         typedef std::unordered_map<ObjectGuid /*playerGuid*/, LfgDungeonCooldownMap> LfgDungeonCooldownContainer;
         LfgDungeonCooldownContainer DungeonCooldownStore;  ///< Stores dungeon cooldowns per player
+        std::mutex DungeonCooldownLock;                    ///< DungeonCooldownStore is written in FinishDungeon (map threads) and read by the LFG queue update (map updater pool)
         void AddDungeonCooldown(ObjectGuid guid, uint32 dungeonId);
         void CleanupDungeonCooldowns();
         [[nodiscard]] Seconds GetDungeonCooldownDuration() const;
