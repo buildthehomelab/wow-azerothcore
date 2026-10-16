@@ -151,10 +151,14 @@ struct boss_viscidus : public BossAI
             return;
         }
 
-        if (effType == DIRECT_DAMAGE)
-            ++_hitcounter;
+        // Every physical hit counts toward the shatter: white swings and shots, and physical
+        // abilities (Mortal Strike, Sinister Strike, Aimed Shot). Spells don't.
+        if (effType != DIRECT_DAMAGE && (effType != SPELL_DIRECT_DAMAGE || spellSchoolMask != SPELL_SCHOOL_MASK_NORMAL))
+            return;
 
-        if (attacker->HasUnitState(UNIT_STATE_MELEE_ATTACKING) && _hitcounter >= HITCOUNTER_EXPLODE)
+        ++_hitcounter;
+
+        if (_hitcounter >= HITCOUNTER_EXPLODE)
         {
             if (me->GetHealthPct() <= 5.f)
             {
@@ -314,7 +318,7 @@ struct boss_viscidus : public BossAI
     }
 
 private:
-    uint8 _hitcounter;
+    uint16 _hitcounter;
     uint8 _phase;
 };
 
