@@ -56,6 +56,8 @@ enum Misc
 
     POINT_CONSUME        = 0,
 
+    GROUP_EAT            = 1,
+
     VEM_WAYPOINT_PATH    = 876030
 };
 
@@ -75,6 +77,39 @@ public:
         }
 
         return true;
+    }
+
+    template <typename Func>
+    void ForEachOtherBug(Func&& func)
+    {
+        for (uint32 data : { DATA_VEM, DATA_KRI, DATA_YAUJ })
+            if (Creature* bug = instance->GetCreature(data))
+                if (bug->GetGUID() != me->GetGUID())
+                    func(bug);
+    }
+
+    // Counted from the creatures themselves, so a lost DATA_BUG_TRIO_DEATH update cannot leave the last bug waiting to be eaten.
+    bool OtherBugsAlive()
+    {
+        bool alive = false;
+        ForEachOtherBug([&alive](Creature* bug)
+        {
+            if (bug->IsAlive())
+                alive = true;
+        });
+        return alive;
+    }
+
+    Creature* GetDyingBug()
+    {
+        Creature* dying = nullptr;
+        ForEachOtherBug([&dying](Creature* bug)
+        {
+            if (boss_bug_trio* ai = dynamic_cast<boss_bug_trio*>(bug->AI()))
+                if (bug->IsAlive() && ai->_dying)
+                    dying = bug;
+        });
+        return dying;
     }
 
     void EnterCombatWithTrio(Unit* who)
@@ -145,35 +180,55 @@ public:
         if (action == ACTION_CONSUME && !_dying)
         {
             _isEating = true;
+            _consumeReached = false;
             me->SetSpeed(MOVE_RUN, 45.f / 7.f); // From sniffs
             me->SetReactState(REACT_PASSIVE);
+            _scheduler.CancelGroup(GROUP_EAT);
             _scheduler.DelayAll(6s);
+
+            // If the walk to the dying bug never finishes, eat from here rather than stay passive and unkillable.
+            _scheduler.Schedule(10s, GROUP_EAT, [this](TaskContext /*context*/)
+            {
+                FinishEat();
+            });
         }
 
         if (action == ACTION_EXPLODE && _dying)
         {
-            DoCastSelf(SPELL_BLOODY_DEATH);
+            DoCastSelf(SPELL_BLOODY_DEATH, true);
+            if (me->IsAlive())
+                me->KillSelf();
             _dying = false;
         }
     }
 
     void MovementInform(uint32 type, uint32 id) override
     {
-        if (type != POINT_MOTION_TYPE || id != POINT_CONSUME)
+        if (type != POINT_MOTION_TYPE || id != POINT_CONSUME || !_isEating || _consumeReached)
             return;
 
+        _scheduler.CancelGroup(GROUP_EAT);
+        FinishEat();
+    }
+
+    void FinishEat()
+    {
+        if (!_isEating || _consumeReached)
+            return;
+
+        _consumeReached = true;
         me->GetMotionMaster()->MoveIdle();
         me->SetSpeed(MOVE_RUN, 15.f/7.f); // From sniffs
         DoCastSelf(SPELL_FULL_HEAL, true);
         if (me->GetThreatMgr().GetThreatListSize())
             DoResetThreatList();
-        if (Creature* dying = instance->GetCreature(_creatureDying))
+        if (Creature* dying = GetDyingBug())
         {
             dying->AI()->DoAction(ACTION_EXPLODE);
             me->SetTarget(dying->GetGUID());
         }
 
-        _scheduler.Schedule(2s, [this](TaskContext /*context*/)
+        _scheduler.Schedule(2s, GROUP_EAT, [this](TaskContext /*context*/)
         {
             me->SetReactState(REACT_AGGRESSIVE);
             _isEating = false;
@@ -198,7 +253,7 @@ public:
         _scheduler.CancelAll();
         _dying = false;
         _isEating = false;
-        _creatureDying = 0;
+        _consumeReached = false;
         instance->SetData(DATA_BUG_TRIO_DEATH, 0);
         me->SetSpeed(MOVE_RUN, 15.f / 7.f); // From sniffs
 
@@ -225,7 +280,7 @@ public:
         if (_dying && who && who->GetGUID() != me->GetGUID())
             damage = 0;
 
-        if (me->HealthBelowPctDamaged(0, damage) && instance->GetData(DATA_BUG_TRIO_DEATH) < 2 && !_dying)
+        if (damage >= me->GetHealth() && OtherBugsAlive() && !_dying)
         {
             damage = 0;
             if (_isEating)
@@ -247,7 +302,6 @@ public:
                         vem->GetMotionMaster()->MovePoint(POINT_CONSUME, x, y, z);
                     }
                 }
-                else _creatureDying = DATA_VEM;
             }
             if (Creature* kri = instance->GetCreature(DATA_KRI))
             {
@@ -260,7 +314,6 @@ public:
                         kri->GetMotionMaster()->MovePoint(POINT_CONSUME, x, y, z);
                     }
                 }
-                else _creatureDying = DATA_KRI;
             }
             if (Creature* yauj = instance->GetCreature(DATA_YAUJ))
             {
@@ -273,8 +326,13 @@ public:
                         yauj->GetMotionMaster()->MovePoint(POINT_CONSUME, x, y, z);
                     }
                 }
-                else _creatureDying = DATA_YAUJ;
             }
+
+            // Eaters time out after 10s; if none is left to eat this bug, it explodes on its own.
+            _scheduler.Schedule(12s, [this](TaskContext /*context*/)
+            {
+                DoAction(ACTION_EXPLODE);
+            });
         }
     }
 
@@ -305,7 +363,7 @@ public:
     void JustDied(Unit* killer) override
     {
         instance->SetData(DATA_BUG_TRIO_DEATH, 1);
-        if (instance->GetData(DATA_BUG_TRIO_DEATH) < 3)
+        if (OtherBugsAlive())
         {
             me->RemoveDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
             DoFinalSpell();
@@ -320,10 +378,8 @@ public:
     TaskScheduler _scheduler;
     bool _dying;
     bool _isEating;
-    static uint32 _creatureDying;
+    bool _consumeReached;
 };
-
-uint32 boss_bug_trio::_creatureDying = 0;
 
 struct boss_kri : public boss_bug_trio
 {
@@ -393,7 +449,7 @@ struct boss_vem : public boss_bug_trio
         })
         .Schedule(1s, [this](TaskContext context)
         {
-            if (instance->GetData(DATA_BUG_TRIO_DEATH) == 2 && !me->HasAura(SPELL_VENGEANCE)) // Vem is the only one left.
+            if (!OtherBugsAlive() && !me->HasAura(SPELL_VENGEANCE)) // Vem is the only one left.
             {
                 DoCastSelf(SPELL_VENGEANCE, true);
             }
