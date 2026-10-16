@@ -394,7 +394,8 @@ void WorldSession::HandleMailMarkAsRead(WorldPacket& recvData)
     Mail* m = player->GetMail(mailId);
     if (m && m->state != MAIL_STATE_DELETED)
     {
-        if (player->unReadMails)
+        // Only the first read lowers the count: the client may mark a mail as read again
+        if (!(m->checked & MAIL_CHECK_MASK_READ) && player->unReadMails)
             --player->unReadMails;
         m->checked = m->checked | MAIL_CHECK_MASK_READ;
         player->m_mailsUpdated = true;
@@ -427,6 +428,10 @@ void WorldSession::HandleMailDelete(WorldPacket& recvData)
         }
 
         m->state = MAIL_STATE_DELETED;
+
+        // The mail may be deleted unread (an addon emptying it without opening it), and it stays
+        // in the mail list until the next save, so recount or the new mail icon stays on
+        player->RecountUnreadMails();
 
         sMailMgr->OnMailDeleted(player->GetGUID().GetCounter());
     }
@@ -894,7 +899,7 @@ void WorldSession::HandleQueryNextMailTime(WorldPacket& /*recvData*/)
 
     if (_player->unReadMails > 0)
     {
-        data << float(0);                                  // float
+        data << float(-DAY);                               // set to 0 below if an unread mail is found
         data << uint32(0);                                 // count
 
         uint32 count = 0;
@@ -902,6 +907,10 @@ void WorldSession::HandleQueryNextMailTime(WorldPacket& /*recvData*/)
         std::set<uint32> sentSenders;
         for (Mail const* mail : _player->GetMails())
         {
+            // deleted mail stays in the list until the next save
+            if (mail->state == MAIL_STATE_DELETED)
+                continue;
+
             // must be not checked yet
             if (mail->checked & MAIL_CHECK_MASK_READ)
                 continue;
@@ -926,6 +935,9 @@ void WorldSession::HandleQueryNextMailTime(WorldPacket& /*recvData*/)
                 break;
         }
 
+        // A stale count with no unread mail left must not light the new mail icon
+        if (count)
+            data.put<float>(0, 0.0f);
         data.put<uint32>(4, count);
     }
     else
