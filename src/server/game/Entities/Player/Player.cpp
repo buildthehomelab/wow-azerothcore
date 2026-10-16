@@ -2954,6 +2954,9 @@ void Player::RemoveMail(uint32 id)
         {
             //do not delete item, because Player::removeMail() is called when returning mail to sender.
             m_mail.erase(itr);
+
+            // the mail may still be unread (returned without opening it)
+            UpdateNextMailTimeAndUnreads();
             return;
         }
     }
@@ -2994,7 +2997,8 @@ void Player::AddNewMailDeliverTime(time_t deliver_time)
 {
     if (deliver_time <= GameTime::GetGameTime().count())                      // ready now
     {
-        ++unReadMails;
+        if (unReadMails < std::numeric_limits<uint8>::max())
+            ++unReadMails;
         SendNewMail();
     }
     else                                                    // not ready and no have ready mails
