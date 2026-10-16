@@ -95,6 +95,7 @@
 #include "WorldStateDefines.h"
 #include "WorldStatePackets.h"
 #include <cmath>
+#include <limits>
 #include <queue>
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
@@ -2956,7 +2957,7 @@ void Player::RemoveMail(uint32 id)
             m_mail.erase(itr);
 
             // the mail may still be unread (returned without opening it)
-            UpdateNextMailTimeAndUnreads();
+            RecountUnreadMails();
             return;
         }
     }

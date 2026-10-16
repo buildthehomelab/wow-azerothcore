@@ -431,7 +431,7 @@ void WorldSession::HandleMailDelete(WorldPacket& recvData)
 
         // The mail may be deleted unread (an addon emptying it without opening it), and it stays
         // in the mail list until the next save, so recount or the new mail icon stays on
-        player->UpdateNextMailTimeAndUnreads();
+        player->RecountUnreadMails();
 
         sMailMgr->OnMailDeleted(player->GetGUID().GetCounter());
     }

@@ -40,6 +40,7 @@
 #include "WeatherMgr.h"
 #include "WorldState.h"
 #include "WorldStatePackets.h"
+#include <limits>
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -444,7 +445,6 @@ void Player::UpdateNextMailTimeAndUnreads()
     time_t cTime = GameTime::GetGameTime().count();
 
     m_nextMailDelivereTime = 0;
-    unReadMails = 0;
 
     for (Mail const* mail : GetMails())
     {
@@ -457,6 +457,24 @@ void Player::UpdateNextMailTimeAndUnreads()
             if (!m_nextMailDelivereTime || m_nextMailDelivereTime > mail->deliver_time)
                 m_nextMailDelivereTime = mail->deliver_time;
         }
+    }
+
+    RecountUnreadMails();
+}
+
+// Recounts unReadMails only. Unlike UpdateNextMailTimeAndUnreads it keeps m_nextMailDelivereTime,
+// so a mail that arrives in the same second is still announced by Player::Update
+void Player::RecountUnreadMails()
+{
+    time_t cTime = GameTime::GetGameTime().count();
+
+    unReadMails = 0;
+
+    for (Mail const* mail : GetMails())
+    {
+        // deleted mail stays in the list until the next save
+        if (mail->state == MAIL_STATE_DELETED)
+            continue;
 
         // must be not checked yet
         if (mail->checked & MAIL_CHECK_MASK_READ)
