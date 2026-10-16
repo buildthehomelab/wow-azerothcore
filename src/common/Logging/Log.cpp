@@ -192,6 +192,25 @@ void Log::ReadAppendersFromConfig()
     }
 }
 
+void Log::LoadNewFromConfig()
+{
+    for (std::string const& key : sConfigMgr->GetKeysByString("Appender."))
+    {
+        if (!GetAppenderByName(std::string_view(key).substr(9)))
+        {
+            CreateAppenderFromConfig(key);
+        }
+    }
+
+    for (std::string const& key : sConfigMgr->GetKeysByString("Logger."))
+    {
+        if (loggers.find(key.substr(7)) == loggers.end())
+        {
+            CreateLoggerFromConfig(key);
+        }
+    }
+}
+
 void Log::ReadLoggersFromConfig()
 {
     std::vector<std::string> keys = sConfigMgr->GetKeysByString("Logger.");
