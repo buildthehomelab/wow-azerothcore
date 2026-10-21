@@ -15,11 +15,13 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "GameEventMgr.h"
 #include "GameObjectAI.h"
 #include "GameObjectScript.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
 #include "Player.h"
+#include "World.h"
 #include "zulgurub.h"
 
 namespace
@@ -33,6 +35,17 @@ namespace
 
     constexpr uint32 MadnessBosses[] = { NPC_GRILEK, NPC_HAZZARAH, NPC_RENATAKI, NPC_WUSHOOLAY };
     constexpr uint32 AllMadnessBosses = 0xF;
+    enum MadnessEvents
+    {
+        EVENT_MADNESS_GRILEK = 27,
+        EVENT_MADNESS_HAZZARAH = 28,
+        EVENT_MADNESS_RENATAKI = 29,
+        EVENT_MADNESS_WUSHOOLAY = 30
+    };
+    constexpr uint32 MadnessCalendarEvents[] =
+    {
+        EVENT_MADNESS_GRILEK, EVENT_MADNESS_HAZZARAH, EVENT_MADNESS_RENATAKI, EVENT_MADNESS_WUSHOOLAY
+    };
 }
 
 DoorData const doorData[] =
@@ -205,6 +218,9 @@ public:
     private:
         void CreditMadnessBoss()
         {
+            if (!sWorld->getBoolConfig(CONFIG_PLAYER_SETTINGS_ENABLED))
+                return;
+
             Creature* boss = instance->GetCreature(_edgeOfMadnessGUID);
             if (!boss)
                 return;
@@ -272,7 +288,17 @@ struct go_brazier_of_madness : public GameObjectAI
             return false;
 
         uint32 bossEntry = instanceScript->GetData(TYPE_EDGE_OF_MADNESS);
-        if (!bossEntry)
+        if (!bossEntry && !sWorld->getBoolConfig(CONFIG_PLAYER_SETTINGS_ENABLED))
+        {
+            // Preserve the calendar rotation when character progress cannot be persisted.
+            for (uint32 i = 0; i < std::size(MadnessBosses); ++i)
+                if (sGameEventMgr->IsActiveEvent(MadnessCalendarEvents[i]))
+                {
+                    bossEntry = MadnessBosses[i];
+                    break;
+                }
+        }
+        else if (!bossEntry)
         {
             uint32 mask = player->GetPlayerSetting(MadnessSettingsSource, SETTING_DEFEATED_BOSSES).value;
             if ((mask & AllMadnessBosses) == AllMadnessBosses)
@@ -285,7 +311,7 @@ struct go_brazier_of_madness : public GameObjectAI
                 }
         }
 
-        if (me->SummonCreature(bossEntry, edgeOfMagnessSummonPos,
+        if (bossEntry && me->SummonCreature(bossEntry, edgeOfMagnessSummonPos,
             TEMPSUMMON_CORPSE_TIMED_DESPAWN, 2 * HOUR * IN_MILLISECONDS))
             instanceScript->SaveToDB();
 
