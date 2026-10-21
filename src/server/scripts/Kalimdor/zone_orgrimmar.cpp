@@ -169,7 +169,8 @@ public:
                 break;
         }
 
-        return true;
+        // false: the core still offers the follow-up quest and runs the AI's sQuestReward
+        return false;
     }
 
     CreatureAI* GetAI(Creature* creature) const override
