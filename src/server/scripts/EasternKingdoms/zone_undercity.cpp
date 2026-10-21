@@ -93,7 +93,8 @@ public:
         if (_Quest->GetQuestId() == QUEST_JOURNEY_TO_UNDERCITY)
             creature->AI()->SetGUID(player->GetGUID(), GUID_EVENT_INVOKER);
 
-        return true;
+        // false: the core still offers the follow-up quest and runs the AI's sQuestReward
+        return false;
     }
 
     struct npc_lady_sylvanas_windrunnerAI : public ScriptedAI
