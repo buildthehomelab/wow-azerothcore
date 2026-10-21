@@ -20,7 +20,33 @@
 #include "GameObjectScript.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
+#include "Player.h"
+#include "World.h"
 #include "zulgurub.h"
+
+namespace
+{
+    // Stored per character, independently of the raid's instance save.
+    std::string const MadnessSettingsSource = "EvermoreEdgeOfMadness";
+    enum MadnessSettings
+    {
+        SETTING_DEFEATED_BOSSES = 0
+    };
+
+    constexpr uint32 MadnessBosses[] = { NPC_GRILEK, NPC_HAZZARAH, NPC_RENATAKI, NPC_WUSHOOLAY };
+    constexpr uint32 AllMadnessBosses = 0xF;
+    enum MadnessEvents
+    {
+        EVENT_MADNESS_GRILEK = 27,
+        EVENT_MADNESS_HAZZARAH = 28,
+        EVENT_MADNESS_RENATAKI = 29,
+        EVENT_MADNESS_WUSHOOLAY = 30
+    };
+    constexpr uint32 MadnessCalendarEvents[] =
+    {
+        EVENT_MADNESS_GRILEK, EVENT_MADNESS_HAZZARAH, EVENT_MADNESS_RENATAKI, EVENT_MADNESS_WUSHOOLAY
+    };
+}
 
 DoorData const doorData[] =
 {
@@ -84,6 +110,7 @@ public:
                 case NPC_RENATAKI:
                 case NPC_WUSHOOLAY:
                     _edgeOfMadnessGUID = creature->GetGUID();
+                    _edgeOfMadnessEntry = creature->GetEntry();
                     break;
                 default:
                     break;
@@ -134,7 +161,24 @@ public:
                 return _gahzrankaGUID || GetBossState(DATA_GAHZRANKA) == DONE;
             }
 
+            if (type == TYPE_EDGE_OF_MADNESS)
+                return _edgeOfMadnessEntry;
+
             return 0;
+        }
+
+        void WriteSaveDataMore(std::ostringstream& data) override
+        {
+            data << _edgeOfMadnessEntry;
+        }
+
+        void ReadSaveDataMore(std::istringstream& data) override
+        {
+            uint32 entry = 0;
+            if (data >> entry)
+                for (uint32 boss : MadnessBosses)
+                    if (entry == boss)
+                        _edgeOfMadnessEntry = entry;
         }
 
         void RemoveHakkarPowerStack()
@@ -160,6 +204,10 @@ public:
                     if (state == DONE)
                         RemoveHakkarPowerStack();
                     break;
+                case DATA_EDGE_OF_MADNESS:
+                    if (state == DONE)
+                        CreditMadnessBoss();
+                    break;
                 default:
                     break;
             }
@@ -168,6 +216,37 @@ public:
         }
 
     private:
+        void CreditMadnessBoss()
+        {
+            if (!sWorld->getBoolConfig(CONFIG_PLAYER_SETTINGS_ENABLED))
+                return;
+
+            Creature* boss = instance->GetCreature(_edgeOfMadnessGUID);
+            if (!boss)
+                return;
+
+            uint32 bossMask = 0;
+            for (uint32 i = 0; i < std::size(MadnessBosses); ++i)
+                if (boss->GetEntry() == MadnessBosses[i])
+                    bossMask = 1u << i;
+            if (!bossMask)
+                return;
+
+            for (auto const& ref : instance->GetPlayers())
+            {
+                Player* player = ref.GetSource();
+                if (!player || !player->IsAtGroupRewardDistance(boss))
+                    continue;
+
+                uint32 mask = player->GetPlayerSetting(MadnessSettingsSource, SETTING_DEFEATED_BOSSES).value;
+                // Begin a new cycle only after completing all four encounters.
+                if ((mask & AllMadnessBosses) == AllMadnessBosses)
+                    mask = 0;
+                player->UpdatePlayerSetting(MadnessSettingsSource, SETTING_DEFEATED_BOSSES,
+                    (mask | bossMask) & AllMadnessBosses);
+            }
+        }
+
         // If all High Priest bosses were killed. Ohgan is added too.
         // Jindo is needed for healfunction.
 
@@ -178,6 +257,7 @@ public:
         ObjectGuid _hakkarGUID;
         ObjectGuid _gahzrankaGUID;
         ObjectGuid _edgeOfMadnessGUID;
+        uint32 _edgeOfMadnessEntry = 0;
     };
 
     InstanceScript* GetInstanceScript(InstanceMap* map) const override
@@ -186,57 +266,54 @@ public:
     }
 };
 
-enum EdgeOfMadnessEnum
-{
-    EVENT_EDGE_OF_MADNESS_GRILEK    = 27,
-    EVENT_EDGE_OF_MADNESS_HAZZARAH  = 28,
-    EVENT_EDGE_OF_MADNESS_RENATAKI  = 29,
-    EVENT_EDGE_OF_MADNESS_WUSHOOLAY = 30
-};
-
-std::vector<std::pair<uint32, uint32>> BrazierOfMadnessContainer =
-{
-    { EVENT_EDGE_OF_MADNESS_GRILEK,     NPC_GRILEK      },
-    { EVENT_EDGE_OF_MADNESS_HAZZARAH,   NPC_HAZZARAH    },
-    { EVENT_EDGE_OF_MADNESS_RENATAKI,   NPC_RENATAKI    },
-    { EVENT_EDGE_OF_MADNESS_WUSHOOLAY,  NPC_WUSHOOLAY   }
-};
-
 Position const edgeOfMagnessSummonPos = { -11901.229f, -1906.366f, 65.358f, 0.942f };
 
 struct go_brazier_of_madness : public GameObjectAI
 {
     go_brazier_of_madness(GameObject* go) : GameObjectAI(go) { }
 
-    bool GossipHello(Player* /*player*/, bool reportUse) override
+    bool GossipHello(Player* player, bool reportUse) override
     {
         if (reportUse)
         {
             return true;
         }
 
-        if (InstanceScript* instanceScript = me->GetInstanceScript())
+        InstanceScript* instanceScript = me->GetInstanceScript();
+        if (!instanceScript || instanceScript->GetBossState(DATA_EDGE_OF_MADNESS) == DONE)
+            return false;
+
+        // Keep one encounter per raid save, including across wipes and instance unloads.
+        if (me->GetMap()->GetCreature(instanceScript->GetGuidData(DATA_EDGE_OF_MADNESS)))
+            return false;
+
+        uint32 bossEntry = instanceScript->GetData(TYPE_EDGE_OF_MADNESS);
+        if (!bossEntry && !sWorld->getBoolConfig(CONFIG_PLAYER_SETTINGS_ENABLED))
         {
-            if (instanceScript->GetGuidData(DATA_EDGE_OF_MADNESS))
-            {
-                return false;
-            }
+            // Preserve the calendar rotation when character progress cannot be persisted.
+            for (uint32 i = 0; i < std::size(MadnessBosses); ++i)
+                if (sGameEventMgr->IsActiveEvent(MadnessCalendarEvents[i]))
+                {
+                    bossEntry = MadnessBosses[i];
+                    break;
+                }
+        }
+        else if (!bossEntry)
+        {
+            uint32 mask = player->GetPlayerSetting(MadnessSettingsSource, SETTING_DEFEATED_BOSSES).value;
+            if ((mask & AllMadnessBosses) == AllMadnessBosses)
+                mask = 0;
+            for (uint32 i = 0; i < std::size(MadnessBosses); ++i)
+                if (!(mask & (1u << i)))
+                {
+                    bossEntry = MadnessBosses[i];
+                    break;
+                }
         }
 
-        uint32 bossEntry = 0;
-        for (uint8 i = 0; i < 4; ++i)
-        {
-            if (sGameEventMgr->IsActiveEvent(BrazierOfMadnessContainer[i].first))
-            {
-                bossEntry = BrazierOfMadnessContainer[i].second;
-                break;
-            }
-        }
-
-        if (bossEntry)
-        {
-            me->SummonCreature(bossEntry, edgeOfMagnessSummonPos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 2 * HOUR * IN_MILLISECONDS);
-        }
+        if (bossEntry && me->SummonCreature(bossEntry, edgeOfMagnessSummonPos,
+            TEMPSUMMON_CORPSE_TIMED_DESPAWN, 2 * HOUR * IN_MILLISECONDS))
+            instanceScript->SaveToDB();
 
         return false;
     }
