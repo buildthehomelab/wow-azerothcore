@@ -24,12 +24,15 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include <algorithm>
 #include <cmath>
 #include <queue>
 
 namespace
 {
-    // 3D length of every TaxiPath, the way the client weighs a leg when it picks a route
+    // 3D length of every TaxiPath, the way the client weighs a leg when it picks a route; -1 for a path
+    // the flight can't use as a middle leg (FlightPathMovementGenerator::LoadPath drops a middle leg's
+    // first two and last points, so it needs at least four, and a gap in the points breaks it)
     std::vector<float> const& GetTaxiPathLengths()
     {
         static std::vector<float> const lengths = []()
@@ -38,8 +41,13 @@ namespace
             for (std::size_t pathId = 0; pathId < sTaxiPathNodesByPath.size(); ++pathId)
             {
                 TaxiPathNodeList const& points = sTaxiPathNodesByPath[pathId];
+                if (points.size() < 4 || std::find(points.begin(), points.end(), nullptr) != points.end())
+                {
+                    result[pathId] = -1.0f;
+                    continue;
+                }
                 for (std::size_t i = 1; i < points.size(); ++i)
-                    if (points[i - 1] && points[i] && points[i - 1]->mapid == points[i]->mapid)
+                    if (points[i - 1]->mapid == points[i]->mapid)
                         result[pathId] += std::sqrt(
                             (points[i]->x - points[i - 1]->x) * (points[i]->x - points[i - 1]->x) +
                             (points[i]->y - points[i - 1]->y) * (points[i]->y - points[i - 1]->y) +
@@ -93,7 +101,7 @@ namespace
                 continue;
             for (auto const& [next, path] : source->second)
             {
-                if (!usable(next) || path->ID >= lengths.size())
+                if (!usable(next) || path->ID >= lengths.size() || lengths[path->ID] < 0.0f)
                     continue;
                 float nextCost = nodeCost + lengths[path->ID] + stopPenalty;
                 auto known = cost.find(next);
@@ -292,7 +300,16 @@ void WorldSession::HandleActivateTaxiExpressOpcode(WorldPacket& recvData)
     if (uint32 stopPenalty = sWorld->getIntConfig(CONFIG_TAXI_STOP_PENALTY); stopPenalty && nodes.size() > 2)
     {
         std::vector<uint32> route = FindTaxiRouteWithFewerStops(GetPlayer(), nodes.front(), nodes.back(), float(stopPenalty));
-        if (!route.empty() && route.size() < nodes.size())
+        // the map showed the client's price: keep its route if the player can't pay for this one
+        uint32 routeCost = 0;
+        for (std::size_t i = 1; i < route.size(); ++i)
+        {
+            uint32 path, cost;
+            sObjectMgr->GetTaxiPath(route[i - 1], route[i], path, cost);
+            routeCost += cost;
+        }
+        routeCost = uint32(std::ceil(routeCost * GetPlayer()->GetReputationPriceDiscount(npc)));
+        if (!route.empty() && route.size() < nodes.size() && GetPlayer()->HasEnoughMoney(routeCost))
         {
             LOG_DEBUG("network", "WORLD: CMSG_ACTIVATETAXIEXPRESS {} -> {}: {} stops instead of the client's {}",
                 nodes.front(), nodes.back(), route.size() - 2, nodes.size() - 2);
