@@ -1663,6 +1663,18 @@ AllFlightPaths = 0
 TaxiFlightSpeed = 32.0
 
 #
+#    TaxiStopPenalty
+#        Description: The client picks the stops of a multi-hop flight by flown distance alone, so it
+#                     often goes through many flight masters to save a few yards. With a penalty, the
+#                     server picks the stops again (from the player's known flight masters) and counts
+#                     every stop as this many extra yards, then flies that route if it has fewer stops.
+#                     The flight map's preview line and price still show the client's own choice.
+#        Default:     0    - (Disabled, fly the client's route)
+#                     1000 - (One stop is worth 1000 yards of extra flying)
+
+TaxiStopPenalty = 0
+
+#
 #    InstantFlightPaths
 #        Description: Flight paths will take players to their destination instantly instead
 #                     of making them wait while flying.
