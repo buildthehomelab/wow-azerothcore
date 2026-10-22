@@ -21,8 +21,99 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "WaypointMovementGenerator.h"
+#include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include <cmath>
+#include <queue>
+
+namespace
+{
+    // 3D length of every TaxiPath, the way the client weighs a leg when it picks a route
+    std::vector<float> const& GetTaxiPathLengths()
+    {
+        static std::vector<float> const lengths = []()
+        {
+            std::vector<float> result(sTaxiPathNodesByPath.size(), 0.0f);
+            for (std::size_t pathId = 0; pathId < sTaxiPathNodesByPath.size(); ++pathId)
+            {
+                TaxiPathNodeList const& points = sTaxiPathNodesByPath[pathId];
+                for (std::size_t i = 1; i < points.size(); ++i)
+                    if (points[i - 1] && points[i] && points[i - 1]->mapid == points[i]->mapid)
+                        result[pathId] += std::sqrt(
+                            (points[i]->x - points[i - 1]->x) * (points[i]->x - points[i - 1]->x) +
+                            (points[i]->y - points[i - 1]->y) * (points[i]->y - points[i - 1]->y) +
+                            (points[i]->z - points[i - 1]->z) * (points[i]->z - points[i - 1]->z));
+            }
+            return result;
+        }();
+        return lengths;
+    }
+
+    // The client's route counts only flown distance. Picks the route again over the flight masters the
+    // player knows, with every stop worth stopPenalty extra yards. Returns an empty route if there is none.
+    std::vector<uint32> FindTaxiRouteWithFewerStops(Player* player, uint32 from, uint32 to, float stopPenalty)
+    {
+        TaxiNodesEntry const* start = sTaxiNodesStore.LookupEntry(from);
+        if (!start)
+            return {};
+
+        TaxiMask const& teamMask = player->GetTeamId(true) == TEAM_ALLIANCE ? sAllianceTaxiNodesMask : sHordeTaxiNodesMask;
+        auto usable = [&](uint32 node)
+        {
+            if (node == to)
+                return true;
+            TaxiNodesEntry const* entry = sTaxiNodesStore.LookupEntry(node);
+            if (!entry || entry->map_id != start->map_id)
+                return false;
+            uint8 field = uint8((node - 1) / 32);
+            uint32 submask = 1 << ((node - 1) % 32);
+            if (field >= TaxiMaskSize || !(teamMask[field] & submask))
+                return false;
+            return player->isTaxiCheater() || player->m_taxi.IsTaximaskNodeKnown(node);
+        };
+
+        std::vector<float> const& lengths = GetTaxiPathLengths();
+        std::map<uint32, float> cost;
+        std::map<uint32, uint32> previous;
+        using Entry = std::pair<float, uint32>;
+        std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> queue;
+        cost[from] = 0.0f;
+        queue.emplace(0.0f, from);
+        while (!queue.empty())
+        {
+            auto [nodeCost, node] = queue.top();
+            queue.pop();
+            if (node == to)
+                break;
+            if (nodeCost > cost[node])
+                continue;
+            auto source = sTaxiPathSetBySource.find(node);
+            if (source == sTaxiPathSetBySource.end())
+                continue;
+            for (auto const& [next, path] : source->second)
+            {
+                if (!usable(next) || path->ID >= lengths.size())
+                    continue;
+                float nextCost = nodeCost + lengths[path->ID] + stopPenalty;
+                auto known = cost.find(next);
+                if (known == cost.end() || nextCost < known->second)
+                {
+                    cost[next] = nextCost;
+                    previous[next] = node;
+                    queue.emplace(nextCost, next);
+                }
+            }
+        }
+
+        if (!previous.count(to))
+            return {};
+        std::vector<uint32> route = { to };
+        while (route.back() != from)
+            route.push_back(previous[route.back()]);
+        return { route.rbegin(), route.rend() };
+    }
+}
 
 void WorldSession::HandleTaxiNodeStatusQueryOpcode(WorldPacket& recvData)
 {
@@ -197,6 +288,17 @@ void WorldSession::HandleActivateTaxiExpressOpcode(WorldPacket& recvData)
         return;
 
     LOG_DEBUG("network", "WORLD: Received CMSG_ACTIVATETAXIEXPRESS from {} to {}", nodes.front(), nodes.back());
+
+    if (uint32 stopPenalty = sWorld->getIntConfig(CONFIG_TAXI_STOP_PENALTY); stopPenalty && nodes.size() > 2)
+    {
+        std::vector<uint32> route = FindTaxiRouteWithFewerStops(GetPlayer(), nodes.front(), nodes.back(), float(stopPenalty));
+        if (!route.empty() && route.size() < nodes.size())
+        {
+            LOG_DEBUG("network", "WORLD: CMSG_ACTIVATETAXIEXPRESS {} -> {}: {} stops instead of the client's {}",
+                nodes.front(), nodes.back(), route.size() - 2, nodes.size() - 2);
+            nodes = std::move(route);
+        }
+    }
 
     GetPlayer()->ActivateTaxiPathTo(nodes, npc, 0);
 }
