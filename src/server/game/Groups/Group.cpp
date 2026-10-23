@@ -1111,7 +1111,8 @@ bool CanRollOnItem(LootItem const& item, Player const* player, Loot* loot)
         return false;
 
     uint32 itemCount = player->GetItemCount(item.itemid, true);
-    if ((proto->MaxCount > 0 && static_cast<int32>(itemCount) >= proto->MaxCount))
+    int32 const maxCount = proto->GetEffectiveMaxCount(); // pairable rings/trinkets count as 2
+    if (maxCount > 0 && static_cast<int32>(itemCount) >= maxCount)
         return false;
 
     if (!item.AllowedForPlayer(player, loot->sourceWorldObjectGUID))

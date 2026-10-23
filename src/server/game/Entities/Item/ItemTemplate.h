@@ -823,6 +823,10 @@ struct ItemTemplate
 
     [[nodiscard]] bool HasStat(ItemModType stat) const;
     [[nodiscard]] bool HasSpellPowerStat() const;
+    // AllowDuplicateUniqueRingsAndTrinkets: a ring or trinket that may be held and worn in pairs
+    [[nodiscard]] bool IsPairableUnique() const;
+    // MaxCount after the pairing rule: 2 for a pairable ring or trinket with MaxCount 1
+    [[nodiscard]] int32 GetEffectiveMaxCount() const;
 
     [[nodiscard]] bool HasFlag(ItemFlags flag) const { return (Flags & flag) != 0; }
     [[nodiscard]] bool HasFlag2(ItemFlags2 flag) const { return (Flags2 & flag) != 0; }

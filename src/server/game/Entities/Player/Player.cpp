@@ -14175,8 +14175,8 @@ InventoryResult Player::CanEquipUniqueItem(Item* pItem, uint8 eslot, uint32 limi
 
 InventoryResult Player::CanEquipUniqueItem(ItemTemplate const* itemProto, uint8 except_slot, uint32 limit_count) const
 {
-    // check unique-equipped on item
-    if (itemProto->HasFlag(ITEM_FLAG_UNIQUE_EQUIPPABLE))
+    // check unique-equipped on item (waived for pairable rings/trinkets)
+    if (itemProto->HasFlag(ITEM_FLAG_UNIQUE_EQUIPPABLE) && !itemProto->IsPairableUnique())
     {
         // there is an equip limit on this item
         if (HasItemOrGemWithIdEquipped(itemProto->ItemId, 1, except_slot))

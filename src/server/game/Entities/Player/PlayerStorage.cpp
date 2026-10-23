@@ -814,17 +814,20 @@ InventoryResult Player::CanTakeMoreSimilarItems(uint32 entry, uint32 count, Item
     if (item && item->m_lootGenerated)
         return EQUIP_ERR_ALREADY_LOOTED;
 
+    // pairable rings/trinkets count as MaxCount 2 (AllowDuplicateUniqueRingsAndTrinkets)
+    int32 const maxCount = pProto->GetEffectiveMaxCount();
+
     // no maximum
-    if ((pProto->MaxCount <= 0 && pProto->ItemLimitCategory == 0) || pProto->MaxCount == 2147483647)
+    if ((maxCount <= 0 && pProto->ItemLimitCategory == 0) || maxCount == 2147483647)
         return EQUIP_ERR_OK;
 
-    if (pProto->MaxCount > 0)
+    if (maxCount > 0)
     {
         uint32 curcount = GetItemCount(pProto->ItemId, true, item);
-        if (curcount + count > uint32(pProto->MaxCount))
+        if (curcount + count > uint32(maxCount))
         {
             if (no_space_count)
-                *no_space_count = count + curcount - pProto->MaxCount;
+                *no_space_count = count + curcount - maxCount;
             return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
         }
     }
