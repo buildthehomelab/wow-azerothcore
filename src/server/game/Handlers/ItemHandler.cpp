@@ -26,6 +26,7 @@
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "WorldPacket.h"
+#include "World.h"
 #include "WorldSession.h"
 #include <cmath>
 
@@ -339,6 +340,22 @@ bool ItemTemplate::HasStat(ItemModType stat) const
     return false;
 }
 
+bool ItemTemplate::IsPairableUnique() const
+{
+    if (InventoryType != INVTYPE_FINGER && InventoryType != INVTYPE_TRINKET)
+        return false;
+
+    return sWorld->getBoolConfig(CONFIG_ALLOW_DUPLICATE_UNIQUE_RINGS_TRINKETS);
+}
+
+int32 ItemTemplate::GetEffectiveMaxCount() const
+{
+    if (MaxCount == 1 && IsPairableUnique())
+        return 2;
+
+    return MaxCount;
+}
+
 bool ItemTemplate::HasSpellPowerStat() const
 {
     bool invalid = false;
@@ -421,7 +438,9 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recvData)
         queryData << uint8(0x00);                                //pProto->Name4; // blizz not send name there, just uint8(0x00);
         queryData << pProto->DisplayInfoID;
         queryData << pProto->Quality;
-        queryData << pProto->Flags;
+        // pairable rings/trinkets: drop the Unique-Equipped flag so tooltips match the server rule
+        bool const pairable = pProto->IsPairableUnique();
+        queryData << uint32(pairable ? (pProto->Flags & ~uint32(ITEM_FLAG_UNIQUE_EQUIPPABLE)) : pProto->Flags);
         queryData << pProto->Flags2;
         queryData << pProto->BuyPrice;
         queryData << pProto->SellPrice;
@@ -437,7 +456,7 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recvData)
         queryData << pProto->RequiredCityRank;
         queryData << pProto->RequiredReputationFaction;
         queryData << pProto->RequiredReputationRank;
-        queryData << int32(pProto->MaxCount);
+        queryData << int32(pProto->GetEffectiveMaxCount());
         queryData << int32(pProto->Stackable);
         queryData << pProto->ContainerSlots;
         queryData << pProto->StatsCount;                         // item stats count

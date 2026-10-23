@@ -4578,6 +4578,17 @@ AllowTwoSide.Interaction.Arena = 0
 AllowTwoSide.Interaction.Auction = 0
 
 #
+#    AllowDuplicateUniqueRingsAndTrinkets
+#        Description: Let players carry and wear two copies of a Unique or Unique-Equipped
+#                     ring or trinket, one in each slot. Such items count as "Unique (2)"
+#                     and lose the Unique-Equipped limit; every other unique item keeps
+#                     its limit. Tooltips update once the client's item cache is refreshed.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+AllowDuplicateUniqueRingsAndTrinkets = 0
+
+#
 #    TalentsInspecting
 #        Description: Allow inspecting characters from the opposing faction.
 #                     Doesn't affect characters in gamemaster mode.
