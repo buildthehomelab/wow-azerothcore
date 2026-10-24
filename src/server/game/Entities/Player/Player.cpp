@@ -10398,6 +10398,7 @@ void Player::SetRestBonus(float restBonusNew)
 
     // Calculate rest bonus max using the multiplier
     float restBonusMax = (float)GetUInt32Value(PLAYER_NEXT_LEVEL_XP) * restBonusMultiplier / 2;
+    sScriptMgr->OnPlayerGetRestBonusMax(this, restBonusMax);
 
     if (restBonusNew > restBonusMax)
         _restBonus = restBonusMax;
@@ -10557,6 +10558,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
     if (npc)
     {
         float discount = GetReputationPriceDiscount(npc);
+        sScriptMgr->OnPlayerTaxiCostDiscount(this, discount);
         totalcost = uint32(ceil(totalcost * discount));
         firstcost = uint32(ceil(firstcost * discount));
         m_taxi.SetFlightMasterFactionTemplateId(npc->GetFaction());
