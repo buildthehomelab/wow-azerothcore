@@ -488,6 +488,7 @@ public: /* PlayerScript */
     void OnPlayerTaxiFlightSpeed(Player* player, float& speed);
     void OnPlayerGainRestBonus(Player* player, float& bonus);
     void OnPlayerGetRestBonusMax(Player* player, float& restBonusMax);
+    void OnPlayerTaxiCostDiscount(Player* player, float& discount);
 
     // Anti cheat
     void AnticheatSetCanFlybyServer(Player* player, bool apply);

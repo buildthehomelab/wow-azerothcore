@@ -1019,6 +1019,11 @@ void ScriptMgr::OnPlayerGetRestBonusMax(Player* player, float& restBonusMax)
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_GET_REST_BONUS_MAX, script->OnPlayerGetRestBonusMax(player, restBonusMax));
 }
 
+void ScriptMgr::OnPlayerTaxiCostDiscount(Player* player, float& discount)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_TAXI_COST_DISCOUNT, script->OnPlayerTaxiCostDiscount(player, discount));
+}
+
 PlayerScript::PlayerScript(char const* name, std::vector<uint16> enabledHooks)
     : ScriptObject(name, PLAYERHOOK_END)
 {

@@ -238,6 +238,7 @@ enum PlayerHook
     PLAYERHOOK_ON_TAXI_FLIGHT_SPEED,
     PLAYERHOOK_ON_GAIN_REST_BONUS,
     PLAYERHOOK_ON_GET_REST_BONUS_MAX,
+    PLAYERHOOK_ON_TAXI_COST_DISCOUNT,
     PLAYERHOOK_END
 };
 
@@ -993,6 +994,14 @@ public:
      * @param restBonusMax The most rested experience the player can have, from Rate.Rest.MaxBonus to start with
      */
     virtual void OnPlayerGetRestBonusMax(Player* /*player*/, float& /*restBonusMax*/) {}
+
+    /**
+     * @brief This hook is called when a flight path is priced, for the first leg and for every leg after it, and can change what the player pays.
+     *
+     * @param player Contains information about the Player
+     * @param discount The price multiplier, the flight master's reputation discount to start with
+     */
+    virtual void OnPlayerTaxiCostDiscount(Player* /*player*/, float& /*discount*/) {}
 };
 
 #endif

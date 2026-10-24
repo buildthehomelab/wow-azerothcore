@@ -590,6 +590,7 @@ bool FlightPathMovementGenerator::LoadPath(Player* player)
 
     std::deque<uint32> const& taxi = player->m_taxi.GetPath();
     float discount = player->GetReputationPriceDiscount(player->m_taxi.GetFlightMasterFactionTemplate());
+    sScriptMgr->OnPlayerTaxiCostDiscount(player, discount);
     for (uint32 src = 0, dst = 1; dst < taxi.size(); src = dst++)
     {
         uint32 path, cost;

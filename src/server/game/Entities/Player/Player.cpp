@@ -10558,6 +10558,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
     if (npc)
     {
         float discount = GetReputationPriceDiscount(npc);
+        sScriptMgr->OnPlayerTaxiCostDiscount(this, discount);
         totalcost = uint32(ceil(totalcost * discount));
         firstcost = uint32(ceil(firstcost * discount));
         m_taxi.SetFlightMasterFactionTemplateId(npc->GetFaction());
