@@ -236,6 +236,8 @@ enum PlayerHook
     PLAYERHOOK_ON_GET_TRAINER_SPELL_STATE,
     PLAYERHOOK_ON_AFTER_TRAIN_SPELL,
     PLAYERHOOK_ON_TAXI_FLIGHT_SPEED,
+    PLAYERHOOK_ON_GAIN_REST_BONUS,
+    PLAYERHOOK_ON_GET_REST_BONUS_MAX,
     PLAYERHOOK_END
 };
 
@@ -975,6 +977,22 @@ public:
      * @param speed The flight speed, TaxiFlightSpeed from the config to start with
      */
     virtual void OnPlayerTaxiFlightSpeed(Player* /*player*/, float& /*speed*/) {}
+
+    /**
+     * @brief This hook is called when a player builds up rested experience, in the game (resting in an inn or a city) or while logged out, and can change how much is added.
+     *
+     * @param player Contains information about the Player
+     * @param bonus The rested experience about to be added
+     */
+    virtual void OnPlayerGainRestBonus(Player* /*player*/, float& /*bonus*/) {}
+
+    /**
+     * @brief This hook is called whenever a player's rested experience is set, and can change how much they can have at most.
+     *
+     * @param player Contains information about the Player
+     * @param restBonusMax The most rested experience the player can have, from Rate.Rest.MaxBonus to start with
+     */
+    virtual void OnPlayerGetRestBonusMax(Player* /*player*/, float& /*restBonusMax*/) {}
 };
 
 #endif

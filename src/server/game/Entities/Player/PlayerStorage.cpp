@@ -5531,7 +5531,9 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
                        : bubble0 * sWorld->getRate(RATE_REST_OFFLINE_IN_WILDERNESS);
 
         // Client automatically doubles the value sent so we have to divide it by 2
-        SetRestBonus(GetRestBonus() + time_diff * ((float)GetUInt32Value(PLAYER_NEXT_LEVEL_XP) / 144000)*bubble);
+        float bonus = time_diff * ((float)GetUInt32Value(PLAYER_NEXT_LEVEL_XP) / 144000) * bubble;
+        sScriptMgr->OnPlayerGainRestBonus(this, bonus);
+        SetRestBonus(GetRestBonus() + bonus);
     }
 
     uint32 innTriggerId = fields[72].Get<uint32>();

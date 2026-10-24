@@ -10398,6 +10398,7 @@ void Player::SetRestBonus(float restBonusNew)
 
     // Calculate rest bonus max using the multiplier
     float restBonusMax = (float)GetUInt32Value(PLAYER_NEXT_LEVEL_XP) * restBonusMultiplier / 2;
+    sScriptMgr->OnPlayerGetRestBonusMax(this, restBonusMax);
 
     if (restBonusNew > restBonusMax)
         _restBonus = restBonusMax;

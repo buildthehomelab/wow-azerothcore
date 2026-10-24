@@ -1009,6 +1009,16 @@ void ScriptMgr::OnPlayerTaxiFlightSpeed(Player* player, float& speed)
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_TAXI_FLIGHT_SPEED, script->OnPlayerTaxiFlightSpeed(player, speed));
 }
 
+void ScriptMgr::OnPlayerGainRestBonus(Player* player, float& bonus)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_GAIN_REST_BONUS, script->OnPlayerGainRestBonus(player, bonus));
+}
+
+void ScriptMgr::OnPlayerGetRestBonusMax(Player* player, float& restBonusMax)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_GET_REST_BONUS_MAX, script->OnPlayerGetRestBonusMax(player, restBonusMax));
+}
+
 PlayerScript::PlayerScript(char const* name, std::vector<uint16> enabledHooks)
     : ScriptObject(name, PLAYERHOOK_END)
 {

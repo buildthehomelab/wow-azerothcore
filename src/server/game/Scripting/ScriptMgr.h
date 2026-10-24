@@ -486,6 +486,8 @@ public: /* PlayerScript */
     void OnPlayerGetTrainerSpellState(Player const* player, uint32 trainerId, uint32 spellId, Trainer::SpellState& state);
     void OnPlayerAfterTrainSpell(Player* player, Creature* trainer, uint32 spellId);
     void OnPlayerTaxiFlightSpeed(Player* player, float& speed);
+    void OnPlayerGainRestBonus(Player* player, float& bonus);
+    void OnPlayerGetRestBonusMax(Player* player, float& restBonusMax);
 
     // Anti cheat
     void AnticheatSetCanFlybyServer(Player* player, bool apply);
