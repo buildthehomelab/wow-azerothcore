@@ -251,7 +251,9 @@ void Player::Update(uint32 p_time)
                     bubble;
 
                 // speed collect rest bonus (section/in hour)
-                SetRestBonus(GetRestBonus() + timeDiff * extraPerSec);
+                float bonus = timeDiff * extraPerSec;
+                sScriptMgr->OnPlayerGainRestBonus(this, bonus);
+                SetRestBonus(GetRestBonus() + bonus);
             }
         }
     }
