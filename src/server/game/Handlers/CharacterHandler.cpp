@@ -255,10 +255,11 @@ void WorldSession::HandleCharEnumOpcode(WorldPacket& /*recvData*/)
     else
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ENUM);
 
-    // An empty quest range (1..0) when the era is off.
+    // The era quests (an empty range, 1..0, when the era is off). Only those: other quests just above
+    // them can be something else (mod-individual-progression's PvP ranks are 66101-66114).
     uint32 eraQuestBase = sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE);
     stmt->SetData(0, eraQuestBase ? eraQuestBase : 1);
-    stmt->SetData(1, eraQuestBase ? eraQuestBase + 254 : 0);
+    stmt->SetData(1, eraQuestBase ? eraQuestBase + sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUESTS) - 1 : 0);
     stmt->SetData(2, PET_SAVE_AS_CURRENT);
     stmt->SetData(3, GetAccountId());
 
