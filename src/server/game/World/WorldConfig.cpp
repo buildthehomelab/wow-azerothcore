@@ -265,6 +265,7 @@ void WorldConfig::BuildConfigCache()
     // Keep the maximum aligned with the flying speed clamp in MoveSplineInit::Launch.
     SetConfigValue<float>(CONFIG_TAXI_FLIGHT_SPEED, "TaxiFlightSpeed", 32.0f, ConfigValueCache::Reloadable::Yes,
         [](float const& value) { return value > 0.01f && value <= 50.0f; }, "> 0.01 && <= 50");
+    SetConfigValue<uint32>(CONFIG_TAXI_STOP_PENALTY, "TaxiStopPenalty", 0);
     SetConfigValue<uint32>(CONFIG_INSTANT_TAXI, "InstantFlightPaths", 0);
 
     SetConfigValue<bool>(CONFIG_INSTANCE_IGNORE_LEVEL, "Instance.IgnoreLevel", false);
