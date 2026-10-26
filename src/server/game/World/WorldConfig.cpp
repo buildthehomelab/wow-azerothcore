@@ -237,6 +237,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_CHARACTERS_PER_ACCOUNT, "CharactersPerAccount", 50, ConfigValueCache::Reloadable::Yes, [this](uint32 const& value) { return value >= GetConfigValue<uint32>(CONFIG_CHARACTERS_PER_REALM); }, ">= CONFIG_CHARACTERS_PER_REALM");
     // Evermore: sends each character's progression era in the character list (see Player::BuildEnumData).
     SetConfigValue<uint32>(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE, "CharacterSelect.EraQuestBase", 0);
+    SetConfigValue<uint32>(CONFIG_CHARACTER_SELECT_ERA_QUESTS, "CharacterSelect.EraQuests", 19, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value >= 1 && value <= 255; }, ">= 1 && <= 255");
     SetConfigValue<uint32>(CONFIG_HEROIC_CHARACTERS_PER_REALM, "HeroicCharactersPerRealm", 1, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value <= 10; }, "<= 10");
 
     SetConfigValue<uint32>(CONFIG_CHARACTER_CREATING_MIN_LEVEL_FOR_HEROIC_CHARACTER, "CharacterCreating.MinLevelForHeroicCharacter", 55);

@@ -2063,16 +2063,26 @@ CharactersPerRealm = 10
 #    CharacterSelect.EraQuestBase
 #        Description: Sends each character's progression era in the character list, for a
 #                     character select screen that shows it (Evermore's, with its Wow.exe edit).
-#                     The era is the highest rewarded quest from this ID to ID + 254, minus this
-#                     ID (no such quest yet = era 0): mod-individual-progression keeps state n
-#                     as quest 66000 + n. It goes in the last bag slot as an item with no display
-#                     and "enchant" era + 1, which the client never draws. The same value carries
-#                     the account's warband camp (camp * 256), which the screen sets with
-#                     CMSG_REALM_SPLIT 1 or 2 and the realm keeps in account_warband.
+#                     The era is the highest rewarded quest from this ID to ID + EraQuests - 1,
+#                     minus this ID (no such quest yet = era 0): mod-individual-progression
+#                     keeps state n as quest 66000 + n. It goes in the last bag slot as an item
+#                     with no display and "enchant" era + 1, which the client never draws. The
+#                     same value carries the account's warband camp (camp * 256), which the
+#                     screen sets with CMSG_REALM_SPLIT 1 or 2 and the realm keeps in
+#                     account_warband.
 #        Default:     0     - (Disabled)
 #                     66000 - (mod-individual-progression)
 
 CharacterSelect.EraQuestBase = 0
+
+#
+#    CharacterSelect.EraQuests
+#        Description: How many quest IDs from CharacterSelect.EraQuestBase are eras. Keep it to
+#                     the era quests: mod-individual-progression's states are 66000-66018, and its
+#                     PvP rank quests (66101-66114) must not count.
+#        Default:     19
+
+CharacterSelect.EraQuests = 19
 
 #
 #    HeroicCharactersPerRealm
