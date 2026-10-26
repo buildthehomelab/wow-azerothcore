@@ -2060,6 +2060,21 @@ CharactersPerAccount = 50
 CharactersPerRealm = 10
 
 #
+#    CharacterSelect.EraQuestBase
+#        Description: Sends each character's progression era in the character list, for a
+#                     character select screen that shows it (Evermore's, with its Wow.exe edit).
+#                     The era is the highest rewarded quest from this ID to ID + 254, minus this
+#                     ID (no such quest yet = era 0): mod-individual-progression keeps state n
+#                     as quest 66000 + n. It goes in the last bag slot as an item with no display
+#                     and "enchant" era + 1, which the client never draws. The same value carries
+#                     the account's warband camp (camp * 256), which the screen sets with
+#                     CMSG_REALM_SPLIT 1 or 2 and the realm keeps in account_warband.
+#        Default:     0     - (Disabled)
+#                     66000 - (mod-individual-progression)
+
+CharacterSelect.EraQuestBase = 0
+
+#
 #    HeroicCharactersPerRealm
 #        Description: Limit number of heroic class characters per account on this realm.
 #        Range:       1-10

@@ -255,8 +255,12 @@ void WorldSession::HandleCharEnumOpcode(WorldPacket& /*recvData*/)
     else
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ENUM);
 
-    stmt->SetData(0, PET_SAVE_AS_CURRENT);
-    stmt->SetData(1, GetAccountId());
+    // An empty quest range (1..0) when the era is off.
+    uint32 eraQuestBase = sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE);
+    stmt->SetData(0, eraQuestBase ? eraQuestBase : 1);
+    stmt->SetData(1, eraQuestBase ? eraQuestBase + 254 : 0);
+    stmt->SetData(2, PET_SAVE_AS_CURRENT);
+    stmt->SetData(3, GetAccountId());
 
     _queryProcessor.AddCallback(CharacterDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&WorldSession::HandleCharEnum, this, std::placeholders::_1)));
 }

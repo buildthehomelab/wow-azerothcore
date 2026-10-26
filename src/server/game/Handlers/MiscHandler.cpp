@@ -1173,6 +1173,18 @@ void WorldSession::HandleRealmSplitOpcode(WorldPacket& recv_data)
     std::string split_date = "01/01/01";
     recv_data >> unk;
 
+    // Evermore: the character select screen's warband camp button (glue SetRealmSplitState(1 or 2):
+    // the era camp or the forest camp) is the account's choice; the character list sends it back
+    // with each character's era (Player::BuildEnumData). The screen's own request (-1) is just
+    // answered, and this realm never splits.
+    if ((unk == 1 || unk == 2) && sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE))
+    {
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_ACCOUNT_WARBAND_CAMP);
+        stmt->SetData(0, GetAccountId());
+        stmt->SetData(1, uint8(unk));
+        CharacterDatabase.Execute(stmt);
+    }
+
     WorldPacket data(SMSG_REALM_SPLIT, 4 + 4 + split_date.size() + 1);
     data << unk;
     data << uint32(0x00000000);                             // realm split state
