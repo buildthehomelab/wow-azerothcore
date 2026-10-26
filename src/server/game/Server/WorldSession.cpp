@@ -61,6 +61,29 @@
 namespace
 {
     std::string const DefaultPlayerName = "<none>";
+
+    // Queries that fill the client's caches (item, creature, gameobject, quest, text and
+    // name records). Their handlers only read templates, so they are safe to answer while
+    // the player is not in the world. The client asks only once per record and session.
+    // If the query is dropped, the record stays missing until relog, for example a
+    // tooltip stuck on "Retrieving item information" or a creature named "Unknown".
+    bool IsCacheQueryOpcode(OpcodeClient opcode)
+    {
+        switch (opcode)
+        {
+            case CMSG_NAME_QUERY:
+            case CMSG_ITEM_QUERY_SINGLE:
+            case CMSG_ITEM_NAME_QUERY:
+            case CMSG_PAGE_TEXT_QUERY:
+            case CMSG_QUEST_QUERY:
+            case CMSG_GAMEOBJECT_QUERY:
+            case CMSG_CREATURE_QUERY:
+            case CMSG_NPC_TEXT_QUERY:
+                return true;
+            default:
+                return false;
+        }
+    }
 }
 
 bool MapSessionFilter::Process(WorldPacket* packet)
@@ -461,6 +484,17 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                         if (!sScriptMgr->CanPacketReceive(this, *packet))
                             break;
 
+                        opHandle->Call(this, *packet);
+                        LogUnprocessedTail(packet);
+                    }
+                    else if (IsCacheQueryOpcode(opcode))
+                    {
+                        // Loading screen (teleport, instance entry): answer instead of dropping.
+                        if (!sScriptMgr->CanPacketReceive(this, *packet))
+                            break;
+
+                        LOG_DEBUG("network", "Answering {} while the player is not in the world, account id {}",
+                            GetOpcodeNameForLogging(opcode), GetAccountId());
                         opHandle->Call(this, *packet);
                         LogUnprocessedTail(packet);
                     }
