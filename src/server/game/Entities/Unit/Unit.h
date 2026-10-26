@@ -2008,6 +2008,7 @@ public:
     bool isInBackInMap(Unit const* target, float distance, float arc = M_PI) const;
 
     [[nodiscard]] float GetCollisionHeight() const override;
+    [[nodiscard]] float GetClientCollisionHeight() const;
     [[nodiscard]] float GetCollisionWidth() const override;
     [[nodiscard]] float GetCollisionRadius() const override;
 

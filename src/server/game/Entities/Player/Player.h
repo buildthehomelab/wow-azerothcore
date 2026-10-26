@@ -1102,6 +1102,19 @@ public:
         Unit::SetObjectScale(scale);
         SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, scale * DEFAULT_WORLD_OBJECT_SIZE);
         SetFloatValue(UNIT_FIELD_COMBATREACH, scale * DEFAULT_COMBAT_REACH);
+        UpdateCollisionHeightLater(true); // a smaller scale makes the client work out its own height again
+    }
+
+    void SendCollisionHeight(float height);
+    // Sends GetClientCollisionHeight() at least 300 ms and two updates later, after the object update
+    // that goes out with this tick. clientReset: the client works out its own height now (create
+    // block, smaller scale), so send it whatever it was last sent.
+    void UpdateCollisionHeightLater(bool clientReset = false)
+    {
+        _collisionHeightTimer = 300;
+        _collisionHeightTicks = 2;
+        if (clientReset)
+            _clientCollisionHeight = -1.0f;
     }
 
     bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0, Unit* target = nullptr, bool newInstance = false);
@@ -3083,6 +3096,10 @@ private:
     bool _expectingChangeTransport;
     uint32 _pendingFlightChangeCounter;
     uint32 _mapChangeOrderCounter;
+
+    float _clientCollisionHeight = -1.0f; // what the client was last sent; below 0 = not known
+    int32 _collisionHeightTimer = 0;
+    uint8 _collisionHeightTicks = 0;
 };
 
 void AddItemsSetItem(Player* player, Item* item);
