@@ -821,7 +821,7 @@ struct CreatureModelDataEntry
     //float geoBoxMinZ
     //float geoBoxMaxX
     //float geoBoxMaxY
-    //float geoBoxMaxZ
+    float GeoBoxMaxZ;                                        // Model height, used for the swim height in forms and on mounts
     //float worldEffectScale
     //float attachedEffectScale
     //float missileCollisionRadius

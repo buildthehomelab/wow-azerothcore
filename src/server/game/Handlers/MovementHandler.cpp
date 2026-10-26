@@ -790,6 +790,11 @@ void WorldSession::HandleSetActiveMoverOpcode(WorldPacket& recvData)
             LOG_ERROR("network.opcode", "HandleSetActiveMoverOpcode: incorrect mover guid: mover is {} and should be {}",
                 guid.ToString(), _player->m_mover->GetGUID().ToString());
     }
+
+    // The client sends this once it has loaded the world: a collision height sent during the
+    // loading screen may not have reached it
+    if (GetPlayer()->IsInWorld())
+        GetPlayer()->UpdateCollisionHeightLater(true);
 }
 
 void WorldSession::HandleMoveNotActiveMover(WorldPacket& recvData)

@@ -10312,12 +10312,7 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
             if (charm->IsCreature())
                 charm->SetUnitFlag(UNIT_FLAG_STUNNED);
 
-        WorldPacket data(SMSG_MOVE_SET_COLLISION_HGT, GetPackGUID().size() + 4 + 4);
-        data << GetPackGUID();
-        data << player->GetSession()->GetOrderCounter(); // movement counter
-        data << player->GetCollisionHeight();
-        player->SendDirectMessage(&data);
-        player->GetSession()->IncrementOrderCounter();
+        player->SendCollisionHeight(player->GetClientCollisionHeight());
     }
 
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MOUNT);
@@ -10332,14 +10327,7 @@ void Unit::Dismount()
     RemoveUnitFlag(UNIT_FLAG_MOUNT);
 
     if (Player* player = ToPlayer())
-    {
-        WorldPacket data(SMSG_MOVE_SET_COLLISION_HGT, GetPackGUID().size() + 4 + 4);
-        data << GetPackGUID();
-        data << player->GetSession()->GetOrderCounter(); // movement counter
-        data << player->GetCollisionHeight();
-        player->SendDirectMessage(&data);
-        player->GetSession()->IncrementOrderCounter();
-    }
+        player->SendCollisionHeight(player->GetClientCollisionHeight());
 
     WorldPacket data(SMSG_DISMOUNT, 8);
     data << GetPackGUID();
@@ -12806,6 +12794,10 @@ void Unit::SetDisplayId(uint32 modelId, float displayScale /*=1.f*/)
         SetByteValue(UNIT_FIELD_BYTES_0, 2, minfo->gender);
 
     SetObjectScale(displayScale);
+
+    // A form or morph has a swim height of its own
+    if (Player* player = ToPlayer())
+        player->UpdateCollisionHeightLater();
 
     sScriptMgr->OnDisplayIdChange(this, modelId);
 }
@@ -16855,6 +16847,31 @@ float Unit::GetCollisionHeight() const
         collisionHeight = scaleMod * modelData->CollisionHeight * modelData->Scale * displayInfo->scale;
 
     return collisionHeight == 0.0f ? defaultHeight : collisionHeight;
+}
+
+// The height a player's client gets in SMSG_MOVE_SET_COLLISION_HGT. The client floats a swimmer
+// with the water at 75% of it (Wow.exe 12340, 0x730d10) and works it out from the race model, so
+// cat forms and many mounts swam with their head under water. In a form or morph, or on a mount,
+// it is 80% of that model's height (60% of the model under water), never more than
+// GetCollisionHeight() and never under 0.9 yards: below 0.89 the client shows a swimmer at the
+// surface with its head under water (0x6049c0).
+float Unit::GetClientCollisionHeight() const
+{
+    float collisionHeight = GetCollisionHeight();
+
+    uint32 displayId = 0;
+    if (IsMounted())
+        displayId = GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID);
+    else if (GetDisplayId() != GetNativeDisplayId())
+        displayId = GetDisplayId();
+
+    CreatureDisplayInfoEntry const* displayInfo = displayId ? sCreatureDisplayInfoStore.LookupEntry(displayId) : nullptr;
+    CreatureModelDataEntry const* modelData = displayInfo ? sCreatureModelDataStore.LookupEntry(displayInfo->ModelId) : nullptr;
+    if (!modelData || modelData->GeoBoxMaxZ <= 0.0f)
+        return collisionHeight;
+
+    float modelHeight = GetObjectScale() * modelData->Scale * displayInfo->scale * modelData->GeoBoxMaxZ;
+    return std::min(collisionHeight, std::max(modelHeight * 0.8f, 0.9f));
 }
 
 void Unit::Talk(std::string_view text, ChatMsg msgType, Language language, float textRange, WorldObject const* target)

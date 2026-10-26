@@ -1389,6 +1389,20 @@ uint8 Player::GetChatTag() const
     return tag;
 }
 
+void Player::SendCollisionHeight(float height)
+{
+    if (GetSession()->IsHeadless())
+        return;
+
+    WorldPacket data(SMSG_MOVE_SET_COLLISION_HGT, GetPackGUID().size() + 4 + 4);
+    data << GetPackGUID();
+    data << GetSession()->GetOrderCounter(); // movement counter
+    data << height;
+    SendDirectMessage(&data);
+    GetSession()->IncrementOrderCounter();
+    _clientCollisionHeight = height;
+}
+
 void Player::SendTeleportAckPacket()
 {
     WorldPacket data(MSG_MOVE_TELEPORT_ACK, 41);
@@ -11833,6 +11847,9 @@ void Player::SendInitialPacketsBeforeAddToMap()
 void Player::SendInitialPacketsAfterAddToMap()
 {
     UpdateVisibilityForPlayer(true);
+
+    // The create block reset the client's collision height to the race model's
+    UpdateCollisionHeightLater(true);
 
     GetSession()->ResetTimeSync();
     GetSession()->SendTimeSync();

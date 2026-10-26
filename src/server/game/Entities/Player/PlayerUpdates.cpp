@@ -58,6 +58,20 @@ void Player::Update(uint32 p_time)
 
     sScriptMgr->OnPlayerBeforeUpdate(this, p_time);
 
+    if (_collisionHeightTicks)
+    {
+        _collisionHeightTimer -= static_cast<int32>(p_time);
+        if (_collisionHeightTicks > 1)
+            --_collisionHeightTicks;
+        else if (_collisionHeightTimer <= 0)
+        {
+            _collisionHeightTicks = 0;
+            float height = GetClientCollisionHeight();
+            if (height != _clientCollisionHeight)
+                SendCollisionHeight(height);
+        }
+    }
+
     // undelivered mail
     if (m_nextMailDelivereTime && m_nextMailDelivereTime <= GameTime::GetGameTime().count())
     {
