@@ -228,7 +228,10 @@ void WorldConfig::BuildConfigCache()
 
     SetConfigValue<uint32>(CONFIG_CHARACTER_CREATING_DISABLED_CLASSMASK, "CharacterCreating.Disabled.ClassMask", 0);
 
-    SetConfigValue<uint32>(CONFIG_CHARACTERS_PER_REALM, "CharactersPerRealm", 10, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value > 0 && value <= 10; }, "> 0 && <= 10");
+    // Evermore: a stock 3.3.5a client empties the character list when it gets more than 10 (Wow.exe 12340
+    // SMSG_CHAR_ENUM handler, jbe at file offset 0x64057); Portalkeeper patches that out. 127 is the
+    // ceiling of characters.order (tinyint), which the character list is sorted by.
+    SetConfigValue<uint32>(CONFIG_CHARACTERS_PER_REALM, "CharactersPerRealm", 10, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value > 0 && value <= 127; }, "> 0 && <= 127");
 
     // must be after CONFIG_CHARACTERS_PER_REALM
     SetConfigValue<uint32>(CONFIG_CHARACTERS_PER_ACCOUNT, "CharactersPerAccount", 50, ConfigValueCache::Reloadable::Yes, [this](uint32 const& value) { return value >= GetConfigValue<uint32>(CONFIG_CHARACTERS_PER_REALM); }, ">= CONFIG_CHARACTERS_PER_REALM");
