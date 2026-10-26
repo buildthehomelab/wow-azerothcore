@@ -1160,8 +1160,8 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
     //    characters.hairColor, characters.facialStyle, character.level, characters.zone, characters.map, characters.position_x, characters.position_y, characters.position_z,
     //    16                    17                      18                   19                   20                     21                   22               23
     //    guild_member.guildid, characters.playerFlags, characters.at_login, character_pet.entry, character_pet.modelid, character_pet.level, characters.equipmentCache, character_banned.guid,
-    //    24                      25                                                    26
-    //    characters.extra_flags, MAX(character_queststatus_rewarded.quest) in the era range, character_declinedname.genitive
+    //    24                      25                                                    26                    27
+    //    characters.extra_flags, MAX(character_queststatus_rewarded.quest) in the era range, account_warband.camp, character_declinedname.genitive
 
     Field* fields = result->Fetch();
 
@@ -1233,7 +1233,7 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
         charFlags |= CHARACTER_FLAG_LOCKED_BY_BILLING;
     if (sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED))
     {
-        if (!fields[26].Get<std::string>().empty())
+        if (!fields[27].Get<std::string>().empty())
             charFlags |= CHARACTER_FLAG_DECLINED;
     }
     else
@@ -1278,11 +1278,16 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
 
     // Evermore: the character's progression era (CharacterSelect.EraQuestBase) replaces the last bag
     // slot: display 0, so the client draws nothing there, and era + 1 where the enchant goes (no era
-    // quest yet = era 0), so 0 still means "this realm sends no era". The Evermore Wow.exe returns
-    // that dword as an 11th value of the glue screen's GetCharacterInfo.
+    // quest yet = era 0), so 0 still means "this realm sends no era". Above that, 256 * the account's
+    // warband camp (account_warband.camp: 0 not chosen, 1 the era camp, 2 the forest camp). The
+    // Evermore Wow.exe returns that dword as an 11th value of the glue screen's GetCharacterInfo.
     uint32 eraMarker = 0;
     if (uint32 eraQuestBase = sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE))
+    {
         eraMarker = fields[25].IsNull() ? 1 : fields[25].Get<uint32>() - eraQuestBase + 1;
+        if (!fields[26].IsNull())
+            eraMarker |= uint32(fields[26].Get<uint8>()) << 8;
+    }
 
     std::vector<std::string_view> equipment = Acore::Tokenize(fields[22].Get<std::string_view>(), ' ', false);
     for (uint8 slot = 0; slot < INVENTORY_SLOT_BAG_END; ++slot)
