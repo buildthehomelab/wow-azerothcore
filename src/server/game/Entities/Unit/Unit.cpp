@@ -16852,7 +16852,7 @@ float Unit::GetCollisionHeight() const
 // The height a player's client gets in SMSG_MOVE_SET_COLLISION_HGT. The client floats a swimmer
 // with the water at 75% of it (Wow.exe 12340, 0x730d10) and works it out from the race model, so
 // cat forms and many mounts swam with their head under water. In a form or morph, or on a mount,
-// it is 80% of that model's height (60% of the model under water), never more than
+// it is 90% of that model's height (67.5% of the model under water), never more than
 // GetCollisionHeight() and never under 0.9 yards: below 0.89 the client shows a swimmer at the
 // surface with its head under water (0x6049c0).
 float Unit::GetClientCollisionHeight() const
@@ -16871,7 +16871,7 @@ float Unit::GetClientCollisionHeight() const
         return collisionHeight;
 
     float modelHeight = GetObjectScale() * modelData->Scale * displayInfo->scale * modelData->GeoBoxMaxZ;
-    return std::min(collisionHeight, std::max(modelHeight * 0.8f, 0.9f));
+    return std::min(collisionHeight, std::max(modelHeight * 0.9f, 0.9f));
 }
 
 void Unit::Talk(std::string_view text, ChatMsg msgType, Language language, float textRange, WorldObject const* target)
