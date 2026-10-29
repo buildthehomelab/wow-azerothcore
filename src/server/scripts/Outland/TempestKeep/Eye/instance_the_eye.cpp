@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "EvermoreInstanceSave.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
 #include "SpellScript.h"
@@ -65,6 +66,18 @@ public:
             LoadObjectData(creatureData, gameObjectData);
             LoadDoorData(doorData);
             LoadBossBoundaries(boundaries);
+        }
+
+        void Load(char const* data) override
+        {
+            std::string converted = Evermore::ConvertEyeSave(data);
+            if (!converted.empty())
+                InstanceScript::Load(converted.c_str());
+        }
+
+        std::string GetSaveData() override
+        {
+            return Evermore::ConvertEyeSave(InstanceScript::GetSaveData().c_str());
         }
 
         ObjectGuid BridgeWindowGUID;

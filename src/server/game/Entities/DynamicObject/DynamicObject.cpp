@@ -205,12 +205,8 @@ void DynamicObject::SetDuration(int32 newDuration)
 
 void DynamicObject::Delay(int32 delaytime)
 {
-    // Same clamp as Unit::DelayOwnedAuras: a negative duration is neither counted down
-    // nor treated as expired, so the object would stay until its caster leaves the map
-    if (GetDuration() < delaytime)
-        SetDuration(0);
-    else
-        SetDuration(GetDuration() - delaytime);
+    // A negative duration is neither counted down nor treated as expired.
+    SetDuration(std::max(GetDuration() - delaytime, 0));
 }
 
 void DynamicObject::SetAura(Aura* aura)

@@ -18,6 +18,7 @@
 #include "AreaDefines.h"
 #include "CreatureScript.h"
 #include "GameTime.h"
+#include "EvermoreInstanceSave.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
 #include "ObjectMgr.h"
@@ -1146,12 +1147,17 @@ public:
                 }
         }
 
+        std::string GetSaveData() override
+        {
+            return Evermore::ConvertUlduarSave(InstanceScript::GetSaveData().c_str());
+        }
+
         void Load(char const* data) override
         {
-            InstanceScript::Load(data);
-
-            if (!data)
-                StorePersistentData(PERSISTENT_DATA_UNBROKEN, 1);
+            std::string converted = Evermore::ConvertUlduarSave(data);
+            if (data && converted.empty())
+                return;
+            InstanceScript::Load(data ? converted.c_str() : nullptr);
 
             uint32 algalonTimer =
                 GetPersistentData(PERSISTENT_DATA_ALGALON_TIMER);
