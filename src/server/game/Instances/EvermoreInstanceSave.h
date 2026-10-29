@@ -42,12 +42,19 @@ inline std::string ConvertInstanceSave(char const* data, char firstHeader, char 
         return {};
 
     std::vector<uint32_t> values(bossCount + persistentCount);
-    for (uint32_t& value : values)
-        if (!(input >> value))
+    for (std::size_t index = 0; index < values.size(); ++index)
+    {
+        // Ulduar appended persistent fields over time. The original loader left
+        // missing trailing fields at their zero-initialized defaults.
+        input >> std::ws;
+        if (index >= bossCount && input.eof())
+            break;
+        if (!(input >> values[index]))
             return {};
+    }
 
-    // These scripts have no ReadSaveDataMore fields. Reject truncated, corrupt,
-    // or unexpectedly extended input rather than partially loading boss states.
+    // These scripts have no ReadSaveDataMore fields. Reject missing boss states,
+    // corrupt tokens or extra fields rather than partially loading boss states.
     input >> std::ws;
     if (!input.eof())
         return {};

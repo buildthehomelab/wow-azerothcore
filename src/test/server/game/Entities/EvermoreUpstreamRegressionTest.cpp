@@ -97,6 +97,18 @@ TEST(EvermoreInstanceSaveTest, UlduarPreservesEligibilityAndOtherPersistentField
     EXPECT_EQ(Evermore::ConvertUlduarSave(saved.c_str()), eligible);
 }
 
+TEST(EvermoreInstanceSaveTest, HistoricalUlduarSavesDefaultMissingPersistentFields)
+{
+    char const* bosses = "U U 3 0 3 0 0 0 0 0 0 0 0 0 0 0 ";
+    EXPECT_EQ(Evermore::ConvertUlduarSave(bosses),
+        "U U 3 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 ");
+    EXPECT_EQ(Evermore::ConvertUlduarSave((std::string(bosses) + "15 42 1").c_str()),
+        "U U 3 0 3 0 0 0 0 0 0 0 0 0 0 0 15 42 0 0 0 0 0 0 ");
+    EXPECT_EQ(Evermore::ConvertUlduarSave((std::string(bosses) + "15 42 0 60 7 2 1").c_str()),
+        "U U 3 0 3 0 0 0 0 0 0 0 0 0 0 0 15 42 1 60 7 2 1 0 ");
+    EXPECT_TRUE(Evermore::ConvertUlduarSave((std::string(bosses) + "15 x").c_str()).empty());
+}
+
 TEST(EvermoreInstanceSaveTest, InvalidSavesDoNotPartiallyLoad)
 {
     EXPECT_TRUE(Evermore::ConvertEyeSave(nullptr).empty());
