@@ -2069,7 +2069,9 @@ CharactersPerRealm = 10
 #                     with no display and "enchant" era + 1, which the client never draws. The
 #                     same value carries the account's warband camp (camp * 256), which the
 #                     screen sets with CMSG_REALM_SPLIT 1 or 2 and the realm keeps in
-#                     account_warband.
+#                     account_warband, and the character's favourite star and challenges
+#                     (characters.favourite, set by the launcher, and characters.challenges,
+#                     kept by mod-challenges).
 #        Default:     0     - (Disabled)
 #                     66000 - (mod-individual-progression)
 
