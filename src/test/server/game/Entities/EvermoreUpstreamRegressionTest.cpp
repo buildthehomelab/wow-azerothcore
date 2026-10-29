@@ -121,6 +121,7 @@ TEST(EvermoreInstanceSaveTest, InvalidSavesDoNotPartiallyLoad)
 {
     EXPECT_TRUE(Evermore::ConvertEyeSave(nullptr).empty());
     EXPECT_TRUE(Evermore::ConvertEyeSave("U U 0 3 0 0").empty());
+    EXPECT_TRUE(Evermore::ConvertEyeSave("T U 0 3 0 0").empty());
     EXPECT_TRUE(Evermore::ConvertEyeSave("T E 0 3 0").empty());
     EXPECT_TRUE(Evermore::ConvertEyeSave("T E 0 x 0 0").empty());
     EXPECT_TRUE(Evermore::ConvertEyeSave("T E 0 3 0 0 4").empty());
