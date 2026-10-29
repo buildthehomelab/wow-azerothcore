@@ -58,6 +58,8 @@ TEST_F(EvermoreUpstreamRegressionTest, CritSuppressionAcrossCreatureLevelBoundar
 
 TEST_F(EvermoreUpstreamRegressionTest, PreDeathAuraDistinguishesOwnerAndUnresolvedCaster)
 {
+    // Initialize the millisecond clock before the death/refresh interval.
+    GameTime::UpdateGameTimers();
     auto info = SpellInfoBuilder().WithId(900810)
         .WithEffect(0, SPELL_EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE)
         .WithEffectBasePoints(0, 2).WithEffectMiscValue(0, SPELL_SCHOOL_MASK_FIRE).BuildUnique();
