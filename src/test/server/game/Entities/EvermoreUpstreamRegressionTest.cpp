@@ -18,6 +18,7 @@
 #include "GameTime.h"
 #include "EvermoreInstanceSave.h"
 #include "IntegrationTestFixture.h"
+#include "ObjectAccessor.h"
 #include "SpellAuras.h"
 #include "SpellInfoTestHelper.h"
 #include "gtest/gtest.h"
@@ -62,14 +63,19 @@ TEST_F(EvermoreUpstreamRegressionTest, PreDeathAuraDistinguishesOwnerAndUnresolv
         .WithEffectBasePoints(0, 2).WithEffectMiscValue(0, SPELL_SCHOOL_MASK_FIRE).BuildUnique();
     TestPlayer* caster = CreateTestPlayer();
     TestPlayer* target = CreateTestPlayer(2, "Target");
+    ObjectAccessor::AddObject(static_cast<Player*>(caster));
+    auto unregister = [](Player* player) { ObjectAccessor::RemoveObject(player); };
+    std::unique_ptr<Player, decltype(unregister)> registeredCaster(caster, unregister);
     Aura* aura = Aura::TryCreate(info.get(), 1, target, caster);
     ASSERT_NE(aura, nullptr);
     EXPECT_FALSE(aura->HasCasterDiedSinceApply(nullptr));
     EXPECT_FALSE(aura->HasCasterDiedSinceApply(caster));
     EXPECT_FALSE(aura->HasCasterDiedSinceApply(target));
-    caster->setDeathState(DeathState::JustDied);
+    // Exercise Unit's production death timestamp without Player's achievement/
+    // corpse services, which this isolated fixture deliberately does not start.
+    caster->Unit::setDeathState(DeathState::Dead);
     EXPECT_TRUE(aura->HasCasterDiedSinceApply(caster));
-    caster->setDeathState(DeathState::Alive);
+    caster->Unit::setDeathState(DeathState::Alive);
     EXPECT_TRUE(aura->HasCasterDiedSinceApply(caster));
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
     GameTime::UpdateGameTimers();
