@@ -1280,24 +1280,34 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
 
     // Evermore: the character's progression era (CharacterSelect.EraQuestBase) replaces the last bag
     // slot: display 0, so the client draws nothing there, and era + 1 where the enchant goes (no era
-    // quest yet = era 0), so 0 still means "this realm sends no era". Above that, 256 * the account's
+    // quest yet = era 0), so 0 still means "this realm sends no era". Bits 8-11 are the account's
     // warband camp (account_warband.camp: 0 not chosen, 1 the era camp, 2 the forest camp). Bits 16-22
-    // are the challenges running (mod-challenges' bits, characters.challenges low byte), bit 23 a
-    // favourite (characters.favourite, set from the launcher), bits 24-30 the challenges a death ended
-    // (high byte); a finished Hardcore is bits 16 and 24 together. Bit 31 stays clear: the Evermore
-    // Wow.exe returns the dword as an 11th value of the glue screen's GetCharacterInfo, a Lua number.
+    // are mod-challenges' first seven challenges running, bit 23 a favourite (characters.favourite,
+    // set from the launcher), bits 24-30 the challenges a death ended; a finished one has both bits
+    // (a finished Hardcore is bits 16 and 24 together). Bits 12-15 are its eighth and ninth
+    // challenge the same way: Boaring Adventure running in 12 (finished: 12 and 13), Exhaustion in
+    // 14 (and 15). characters.challenges keeps the running ones in its low 16 bits and the ended
+    // ones in its high 16. Bit 31 stays clear: the Evermore Wow.exe returns the dword as an 11th
+    // value of the glue screen's GetCharacterInfo, a Lua number.
     uint32 eraMarker = 0;
     if (uint32 eraQuestBase = sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE))
     {
         eraMarker = fields[25].IsNull() ? 1 : fields[25].Get<uint32>() - eraQuestBase + 1;
         if (!fields[26].IsNull())
-            eraMarker |= uint32(fields[26].Get<uint8>()) << 8;
+            eraMarker |= uint32(fields[26].Get<uint8>() & 0x0F) << 8;
 
-        uint32 const challenges = fields[28].Get<uint16>();
-        eraMarker |= (challenges & 0x7F) << 16;
+        uint32 const challenges = fields[28].Get<uint32>();
+        uint32 const running = challenges & 0xFFFF;
+        uint32 const ended = challenges >> 16;
+        eraMarker |= (running & 0x7F) << 16;
         if (fields[27].Get<uint8>())
             eraMarker |= 1u << 23;
-        eraMarker |= ((challenges >> 8) & 0x7F) << 24;
+        eraMarker |= (ended & 0x7F) << 24;
+        for (uint8 extra = 0; extra < 2; ++extra)
+        {
+            eraMarker |= ((running >> (7 + extra)) & 1) << (12 + 2 * extra);
+            eraMarker |= ((ended >> (7 + extra)) & 1) << (13 + 2 * extra);
+        }
     }
 
     std::vector<std::string_view> equipment = Acore::Tokenize(fields[22].Get<std::string_view>(), ' ', false);
