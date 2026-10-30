@@ -1894,6 +1894,16 @@ void Guild::SendBankTabsInfo(WorldSession* session, bool sendAllSlots /*= false*
 
     member->SubscribeToGuildBankUpdatePackets();
 
+    // Evermore: tell the bank window (DragonUI's) how many slots a tab has, before the tab arrives.
+    // The client has no way to ask, and a stock 3.3.5a UI only ever shows 98.
+    if (_GetGuildBankSlots() > 98)
+    {
+        WorldPacket data;
+        ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, LANG_ADDON, session->GetPlayer(), session->GetPlayer(),
+            Acore::StringFormat("EvermoreGuildBank\tslots:{}", uint32(_GetGuildBankSlots())));
+        session->SendPacket(&data);
+    }
+
     _SendBankList(session, 0, sendAllSlots);
 }
 
