@@ -91,6 +91,13 @@ std::string _GetGuildEventString(GuildEvents event)
     return "<None>";
 }
 
+// Evermore: the slots a tab uses (Guild.BankSlotsPerTab, 98 to GUILD_BANK_MAX_SLOTS). Items in the
+// slots past it stay loaded but are never sent, offered or filled.
+inline uint8 _GetGuildBankSlots()
+{
+    return uint8(sWorld->getIntConfig(CONFIG_GUILD_BANK_SLOTS_PER_TAB));
+}
+
 inline uint32 _GetGuildBankTabPrice(uint8 tabId)
 {
     switch (tabId)
@@ -971,7 +978,7 @@ bool Guild::BankMoveItemData::_ReserveSpace(uint8 slotId, Item* pItem, Item* pIt
 
 void Guild::BankMoveItemData::CanStoreItemInTab(Item* pItem, uint8 skipSlotId, bool merge, uint32& count)
 {
-    for (uint8 slotId = 0; (slotId < GUILD_BANK_MAX_SLOTS) && (count > 0); ++slotId)
+    for (uint8 slotId = 0; (slotId < _GetGuildBankSlots()) && (count > 0); ++slotId)
     {
         // Skip slot already processed in CanStore (when destination slot was specified)
         if (slotId == skipSlotId)
@@ -2424,8 +2431,8 @@ bool Guild::ChangeMemberRank(ObjectGuid guid, uint8 newRank)
 // Bank (items move)
 void Guild::SwapItems(Player* player, uint8 tabId, uint8 slotId, uint8 destTabId, uint8 destSlotId, uint32 splitedAmount)
 {
-    if (tabId >= _GetPurchasedTabsSize() || slotId >= GUILD_BANK_MAX_SLOTS ||
-            destTabId >= _GetPurchasedTabsSize() || destSlotId >= GUILD_BANK_MAX_SLOTS)
+    if (tabId >= _GetPurchasedTabsSize() || slotId >= _GetGuildBankSlots() ||
+            destTabId >= _GetPurchasedTabsSize() || destSlotId >= _GetGuildBankSlots())
         return;
 
     if (tabId == destTabId && slotId == destSlotId)
@@ -2438,7 +2445,7 @@ void Guild::SwapItems(Player* player, uint8 tabId, uint8 slotId, uint8 destTabId
 
 void Guild::SwapItemsWithInventory(Player* player, bool toChar, uint8 tabId, uint8 slotId, uint8 playerBag, uint8 playerSlotId, uint32 splitedAmount)
 {
-    if ((slotId >= GUILD_BANK_MAX_SLOTS && slotId != NULL_SLOT) || tabId >= _GetPurchasedTabsSize())
+    if ((slotId >= _GetGuildBankSlots() && slotId != NULL_SLOT) || tabId >= _GetPurchasedTabsSize())
         return;
 
     BankMoveItemData bankData(this, player, tabId, slotId);
@@ -2979,7 +2986,7 @@ void Guild::_SendBankList(WorldSession* session /* = nullptr*/, uint8 tabId /*= 
         };
 
         if (sendAllSlots)
-            fillItems(boost::make_counting_iterator(uint8(0)), boost::make_counting_iterator(uint8(GUILD_BANK_MAX_SLOTS)), true);
+            fillItems(boost::make_counting_iterator(uint8(0)), boost::make_counting_iterator(_GetGuildBankSlots()), true);
         else if (slots && !slots->empty())
             fillItems(slots->begin(), slots->end(), false);
     }

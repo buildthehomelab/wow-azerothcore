@@ -3694,6 +3694,18 @@ Guild.BankTabCost4 = 25000000
 Guild.BankTabCost5 = 50000000
 
 #
+#    Guild.BankSlotsPerTab
+#        Description: Item slots in each guild bank tab. Evermore: more than 98 needs a client whose
+#                     Wow.exe has the guild bank edit (wow-server tools/client-patches/guild_bank_slots.py)
+#                     and a guild bank window with the extra rows; a stock client given more than 98
+#                     corrupts its memory. Don't lower it once items are in the extra slots: they stay
+#                     in the database but the bank no longer shows them.
+#        Default:     98  - (Stock client)
+#                     196 - (Twice as many, the most the edited client holds)
+
+Guild.BankSlotsPerTab = 98
+
+#
 #    Guild.MemberLimit
 #        Description: Do not allow inviting new players to the guild if the member limit is met or exceeded.
 #        Default:     0 - Disabled

@@ -40,7 +40,7 @@ namespace WorldPackets
 enum GuildMisc
 {
     GUILD_BANK_MAX_TABS                 = 6,                    // send by client for money log also
-    GUILD_BANK_MAX_SLOTS                = 98,
+    GUILD_BANK_MAX_SLOTS                = 196,                  // Evermore: the edited Wow.exe's tab size; Guild.BankSlotsPerTab says how many are used
     GUILD_BANK_MONEY_LOGS_TAB           = 100,                  // used for money log in DB
     GUILD_RANKS_MIN_COUNT               = 5,
     GUILD_RANKS_MAX_COUNT               = 10,

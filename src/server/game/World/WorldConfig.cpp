@@ -402,6 +402,9 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_GUILD_BANK_TAB_COST_3, "Guild.BankTabCost3", 10000000);
     SetConfigValue<uint32>(CONFIG_GUILD_BANK_TAB_COST_4, "Guild.BankTabCost4", 25000000);
     SetConfigValue<uint32>(CONFIG_GUILD_BANK_TAB_COST_5, "Guild.BankTabCost5", 50000000);
+    // Evermore: more than 98 needs the edited Wow.exe (wow-server tools/client-patches/guild_bank_slots.py);
+    // 196 is GUILD_BANK_MAX_SLOTS.
+    SetConfigValue<uint32>(CONFIG_GUILD_BANK_SLOTS_PER_TAB, "Guild.BankSlotsPerTab", 98, ConfigValueCache::Reloadable::No, [](uint32 const& value) { return value >= 98 && value <= 196; }, ">= 98 && <= 196");
 
     SetConfigValue<uint32>(CONFIG_GUILD_MEMBER_LIMIT, "Guild.MemberLimit", 0);
 
