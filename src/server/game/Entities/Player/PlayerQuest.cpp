@@ -1187,10 +1187,11 @@ bool Player::SatisfyQuestReputation(Quest const* qInfo, bool msg) const
 
 bool Player::SatisfyQuestStatus(Quest const* qInfo, bool msg) const
 {
-    if (GetQuestStatus(qInfo->GetQuestId()) != QUEST_STATUS_NONE)
+    QuestStatus status = GetQuestStatus(qInfo->GetQuestId());
+    if (status != QUEST_STATUS_NONE)
     {
         if (msg)
-            SendCanTakeQuestResponse(INVALIDREASON_QUEST_ALREADY_ON);
+            SendCanTakeQuestResponse(status == QUEST_STATUS_REWARDED ? INVALIDREASON_QUEST_ALREADY_DONE : INVALIDREASON_QUEST_ALREADY_ON);
         return false;
     }
     return true;
