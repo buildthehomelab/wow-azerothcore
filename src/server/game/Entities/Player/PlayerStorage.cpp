@@ -955,7 +955,8 @@ InventoryResult Player::CanStoreItem_InSpecificSlot(uint8 bag, uint8 slot, ItemP
             if (!pBagProto)
                 return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
 
-            if (slot >= pBagProto->ContainerSlots)
+            // Live size, not the template's: modules may grow a bag (mod-legacy Deep Pockets)
+            if (slot >= pBag->GetBagSize())
                 return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
 
             if (!ItemCanGoIntoBag(pProto, pBagProto))
