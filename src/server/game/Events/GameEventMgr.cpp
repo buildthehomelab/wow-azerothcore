@@ -43,6 +43,15 @@ GameEventMgr* GameEventMgr::instance()
     return &instance;
 }
 
+// Seconds since the most recent occurrence of the event began
+static time_t SecondsIntoOccurence(GameEventData const& event, time_t currenttime)
+{
+    if (event.IsLocalClockWeekly())
+        return HolidayDateCalculator::LocalClockSecondsIntoWeek(event.Start, currenttime);
+
+    return (currenttime - event.Start) % (event.Occurence * MINUTE);
+}
+
 bool GameEventMgr::CheckOneGameEvent(uint16 entry) const
 {
     switch (_gameEvent[entry].State)
@@ -54,7 +63,7 @@ bool GameEventMgr::CheckOneGameEvent(uint16 entry) const
                 // Get the event information
                 return _gameEvent[entry].Start < currenttime
                        && currenttime < _gameEvent[entry].End
-                       && (currenttime - _gameEvent[entry].Start) % (_gameEvent[entry].Occurence * MINUTE) < _gameEvent[entry].Length * MINUTE;
+                       && SecondsIntoOccurence(_gameEvent[entry], currenttime) < _gameEvent[entry].Length * MINUTE;
             }
         // if the state is conditions or nextphase, then the event should be active
         case GAMEEVENT_WORLD_CONDITIONS:
@@ -107,12 +116,17 @@ uint32 GameEventMgr::NextCheck(uint16 entry) const
         return uint32(_gameEvent[entry].Start - currenttime);
 
     uint32 delay;
+    time_t const intoOccurence = SecondsIntoOccurence(_gameEvent[entry], currenttime);
     // in event, we return the end of it
-    if ((((currenttime - _gameEvent[entry].Start) % (_gameEvent[entry].Occurence * 60)) < (_gameEvent[entry].Length * 60)))
+    if (intoOccurence < (_gameEvent[entry].Length * 60))
         // we return the delay before it ends
-        delay = (_gameEvent[entry].Length * MINUTE) - ((currenttime - _gameEvent[entry].Start) % (_gameEvent[entry].Occurence * MINUTE));
+        delay = (_gameEvent[entry].Length * MINUTE) - intoOccurence;
     else                                                    // not in window, we return the delay before next start
-        delay = (_gameEvent[entry].Occurence * MINUTE) - ((currenttime - _gameEvent[entry].Start) % (_gameEvent[entry].Occurence * MINUTE));
+        delay = (_gameEvent[entry].Occurence * MINUTE) - intoOccurence;
+
+    if (_gameEvent[entry].IsLocalClockWeekly())
+        delay = HolidayDateCalculator::RealSecondsForLocalClockAdvance(currenttime, delay);
+
     // In case the end is before next check
     if (_gameEvent[entry].End < time_t(currenttime + delay))
         return uint32(_gameEvent[entry].End - currenttime);
@@ -204,7 +218,10 @@ void GameEventMgr::StopEvent(uint16 eventId, bool overwrite)
 
     if (overwrite && !serverwide_evt)
     {
-        data.Start = GameTime::GetGameTime().count() - data.Length * MINUTE;
+        time_t const currenttime = GameTime::GetGameTime().count();
+        data.Start = data.IsLocalClockWeekly()
+            ? HolidayDateCalculator::LocalClockEarlier(currenttime, data.Length * MINUTE)
+            : currenttime - data.Length * MINUTE;
         if (data.End <= data.Start)
             data.End = data.Start + data.Length;
     }
@@ -400,6 +417,16 @@ void GameEventMgr::LoadEvents()
                 mainStage = pGameEvent.HolidayStage;
 
             SetHolidayEventTime(pGameEvent);
+        }
+
+        // UNIX_TIMESTAMP(start_time) reads it in the database's timezone, which can differ from the server's
+        if (pGameEvent.IsLocalClockWeekly())
+        {
+            std::string const startText = fields[10].Get<std::string>();
+            if (time_t const localStart = HolidayDateCalculator::ParseLocalDateTime(startText))
+                pGameEvent.Start = localStart;
+            else
+                LOG_ERROR("sql.sql", "`game_event` game event id ({}) has unreadable start_time '{}'.", eventId, startText);
         }
     } while (result->NextRow());
 
