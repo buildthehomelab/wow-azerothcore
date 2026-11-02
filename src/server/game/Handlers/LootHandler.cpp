@@ -431,6 +431,18 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
         }
         else if (pItem->loot.isLooted() || !proto->HasFlag(ITEM_FLAG_HAS_LOOT))
         {
+            // opening a stack uses up one item, the rest stay unopened and roll their own loot
+            if (proto->HasFlag(ITEM_FLAG_HAS_LOOT) && pItem->GetCount() > 1)
+            {
+                pItem->m_lootGenerated = false;
+                pItem->loot.clear();
+                sLootItemStorage->RemoveStoredLoot(pItem->GetGUID());
+
+                uint32 count = 1;
+                player->DestroyItemCount(pItem, count, true);
+                return;
+            }
+
             player->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
             return;
         }
