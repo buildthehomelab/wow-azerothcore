@@ -15,8 +15,10 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "GameEventMgr.h"
 #include "HolidayDateCalculator.h"
 #include "gtest/gtest.h"
+#include <cstdlib>
 
 class HolidayDateCalculatorTest : public ::testing::Test
 {
@@ -1510,4 +1512,166 @@ TEST_F(FindLoopingStartTimeTest, ZeroOccurence_ReturnsAnchor)
     time_t curTime = MakeTime(2026, 2, 6, 12);
     EXPECT_EQ(HolidayDateCalculator::FindLoopingStartTime(anchor, 0, 0, curTime),
         MakeTime(2007, 10, 26));
+}
+
+#ifndef _WIN32
+// Weekly events on a daylight saving clock (Toronto rules, no tzdata needed)
+class LocalClockWeeklyTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        if (char const* zone = std::getenv("TZ"))
+            _oldZone = zone;
+
+        setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
+        tzset();
+    }
+
+    void TearDown() override
+    {
+        if (_oldZone.empty())
+            unsetenv("TZ");
+        else
+            setenv("TZ", _oldZone.c_str(), 1);
+
+        tzset();
+    }
+
+    time_t At(char const* dateTime)
+    {
+        return HolidayDateCalculator::ParseLocalDateTime(dateTime);
+    }
+
+    // Stranglethorn Fishing Extravaganza's start_time; October 30, 2016 was on daylight time
+    time_t Start()
+    {
+        return At("2016-10-30 14:00:00");
+    }
+
+private:
+    std::string _oldZone;
+};
+
+TEST_F(LocalClockWeeklyTest, ParseReadsServerClock)
+{
+    EXPECT_EQ(At("2016-10-30 14:00:00"), time_t(1477850400)); // 18:00 UTC, on daylight time
+    EXPECT_EQ(At("2026-11-08 14:00:00"), time_t(1794164400)); // 19:00 UTC, on standard time
+}
+
+TEST_F(LocalClockWeeklyTest, ParseRejectsMalformed)
+{
+    EXPECT_EQ(HolidayDateCalculator::ParseLocalDateTime(""), time_t(0));
+    EXPECT_EQ(HolidayDateCalculator::ParseLocalDateTime("not a date"), time_t(0));
+}
+
+TEST_F(LocalClockWeeklyTest, StartsAtSameClockTimeOnBothSidesOfDaylightSaving)
+{
+    // Standard time
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(Start(), At("2026-11-08 14:00:00")), time_t(0));
+    // Daylight time
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(Start(), At("2027-07-04 14:00:00")), time_t(0));
+    // First Sundays after each change
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(Start(), At("2027-03-14 14:00:00")), time_t(0));
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(Start(), At("2026-11-01 14:00:00")), time_t(0));
+}
+
+TEST_F(LocalClockWeeklyTest, WindowEdges)
+{
+    time_t const length = 2 * 3600;
+    time_t const week = 7 * 24 * 3600;
+
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(Start(), At("2026-11-08 13:59:59")), week - 1);
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(Start(), At("2026-11-08 15:59:59")), length - 1);
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(Start(), At("2026-11-08 16:00:00")), length);
+}
+
+TEST_F(LocalClockWeeklyTest, EarlierClockTimeAfterChangeStaysInRange)
+{
+    // 01:50 daylight time, then 01:10 standard time 20 minutes later
+    time_t const start = 1793512200;
+    time_t const now = start + 20 * 60;
+    time_t const week = 7 * 24 * 3600;
+
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(start, now), week - 40 * 60);
+}
+
+TEST_F(LocalClockWeeklyTest, DelayAcrossDaylightSavingChange)
+{
+    // Saturday noon to Sunday 14:00 is 26 hours on the clock
+    uint32_t const clockSeconds = 26 * 3600;
+
+    // Clocks go forward: 25 real hours
+    EXPECT_EQ(HolidayDateCalculator::RealSecondsForLocalClockAdvance(At("2027-03-13 12:00:00"), clockSeconds), uint32_t(25 * 3600));
+    // Clocks go back: 27 real hours
+    EXPECT_EQ(HolidayDateCalculator::RealSecondsForLocalClockAdvance(At("2026-10-31 12:00:00"), clockSeconds), uint32_t(27 * 3600));
+    // No change in between
+    EXPECT_EQ(HolidayDateCalculator::RealSecondsForLocalClockAdvance(At("2026-11-07 12:00:00"), clockSeconds), clockSeconds);
+}
+
+TEST_F(LocalClockWeeklyTest, DelayIsNeverZero)
+{
+    EXPECT_EQ(HolidayDateCalculator::RealSecondsForLocalClockAdvance(At("2026-11-08 12:00:00"), 0), uint32_t(1));
+}
+
+TEST_F(LocalClockWeeklyTest, StopLeavesEventJustPastItsLengthAcrossDaylightSavingChange)
+{
+    uint32_t const length = 2 * 3600;
+
+    // Clocks went back from 02:00 to 01:00, 90 minutes before this
+    time_t const afterFallBack = At("2026-11-01 02:30:00");
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(HolidayDateCalculator::LocalClockEarlier(afterFallBack, length), afterFallBack), time_t(length));
+
+    // Clocks went forward at 02:00 standard time
+    time_t const afterSpringForward = At("2027-03-14 05:00:00");
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(HolidayDateCalculator::LocalClockEarlier(afterSpringForward, length), afterSpringForward), time_t(length));
+}
+
+TEST_F(LocalClockWeeklyTest, StopWithTargetInSkippedOrRepeatedHour)
+{
+    uint32_t const length = 2 * 3600;
+
+    // 02:30 doesn't exist that day
+    time_t const skipped = At("2027-03-14 04:30:00");
+    EXPECT_GE(HolidayDateCalculator::LocalClockSecondsIntoWeek(HolidayDateCalculator::LocalClockEarlier(skipped, length), skipped), time_t(length));
+    EXPECT_LE(HolidayDateCalculator::LocalClockEarlier(skipped, length), skipped);
+
+    // 01:30 happens twice that day
+    time_t const repeated = At("2026-11-01 03:30:00");
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(HolidayDateCalculator::LocalClockEarlier(repeated, length), repeated), time_t(length));
+
+    // A short stop just after the first 01:30, whose target is also repeated later
+    time_t const firstPass = At("2026-11-01 01:40:00");
+    EXPECT_LE(HolidayDateCalculator::LocalClockEarlier(firstPass, 20 * 60), firstPass);
+}
+
+TEST_F(LocalClockWeeklyTest, ClockSecondsPast2038)
+{
+    EXPECT_EQ(HolidayDateCalculator::LocalClockSecondsIntoWeek(At("2040-01-01 00:00:00"), At("2040-01-02 00:00:00")), time_t(24 * 3600));
+}
+
+#endif
+
+TEST(GameEventDataTest, IsLocalClockWeekly)
+{
+    GameEventData weekly{};
+    weekly.Start = 1477850400;
+    weekly.Occurence = 7 * 24 * 60;
+    EXPECT_TRUE(weekly.IsLocalClockWeekly());
+
+    GameEventData noStart = weekly;
+    noStart.Start = 0;
+    EXPECT_FALSE(noStart.IsLocalClockWeekly());
+
+    GameEventData holidayStage = weekly;
+    holidayStage.HolidayStage = 1;
+    EXPECT_FALSE(holidayStage.IsLocalClockWeekly());
+
+    GameEventData worldEvent = weekly;
+    worldEvent.State = GAMEEVENT_WORLD_INACTIVE;
+    EXPECT_FALSE(worldEvent.IsLocalClockWeekly());
+
+    GameEventData daily = weekly;
+    daily.Occurence = 24 * 60;
+    EXPECT_FALSE(daily.IsLocalClockWeekly());
 }

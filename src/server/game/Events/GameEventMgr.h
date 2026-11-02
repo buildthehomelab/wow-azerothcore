@@ -71,6 +71,10 @@ struct GameEventData
     uint8 Announce;         // if 0 dont announce, if 1 announce, if 2 take config value
 
     [[nodiscard]] bool isValid() const { return Length > 0 || State > GAMEEVENT_NORMAL; }
+
+    // Weekly events (the fishing contests) run at one server clock time all year, the time the client
+    // calendar shows. Holiday stages take their times from the holiday dates instead.
+    [[nodiscard]] bool IsLocalClockWeekly() const { return State == GAMEEVENT_NORMAL && !HolidayStage && Occurence == WEEK / MINUTE && Start > 0; }
 };
 
 struct ModelEquip

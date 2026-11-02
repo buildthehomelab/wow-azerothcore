@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <ctime>
+#include <string>
 #include <vector>
 
 enum class HolidayCalculationType
@@ -111,6 +112,22 @@ public:
     // forward by whole occurenceMinutes periods to the most recent occurrence. Returns 0 if anchor is 0.
     static time_t FindLoopingStartTime(uint32_t packedAnchor, time_t stageOffset,
         uint32_t occurenceMinutes, time_t curTime);
+
+    // Unix time of a "YYYY-MM-DD HH:MM:SS" string read as the server's local time. Returns 0 if it is malformed.
+    static time_t ParseLocalDateTime(std::string const& dateTime);
+
+    // Weekly game events run at one local clock time all year, so daylight saving must not shift them.
+    // Seconds on the local clock since the most recent weekly occurrence of start, from 0 to one week.
+    // A start or end inside the hour a clock change skips or repeats won't land exactly on that day.
+    static time_t LocalClockSecondsIntoWeek(time_t start, time_t now);
+
+    // Real seconds until the local clock shows clockSeconds later than it does at now. Differs from
+    // clockSeconds when daylight saving changes in between. Always at least 1.
+    static uint32_t RealSecondsForLocalClockAdvance(time_t now, uint32_t clockSeconds);
+
+    // Unix time when the local clock showed clockSeconds earlier than it does at now, or the nearest
+    // time before that if a clock change skipped it.
+    static time_t LocalClockEarlier(time_t now, uint32_t clockSeconds);
 
 private:
     // Julian Date conversions for lunar calculations

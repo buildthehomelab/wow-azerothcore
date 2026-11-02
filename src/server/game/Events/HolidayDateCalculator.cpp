@@ -17,7 +17,11 @@
 
 #include "HolidayDateCalculator.h"
 #include "SharedDefines.h"
+#include "Timer.h"
+#include <chrono>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
 
 // Constants for astronomical calculations
 constexpr double PI = 3.14159265358979323846;
@@ -695,4 +699,66 @@ time_t HolidayDateCalculator::FindLoopingStartTime(uint32_t packedAnchor, time_t
         anchor += ((curTime - anchor) / period) * period;
 
     return anchor;
+}
+
+time_t HolidayDateCalculator::ParseLocalDateTime(std::string const& dateTime)
+{
+    std::tm date = {};
+    std::istringstream stream(dateTime);
+    stream >> std::get_time(&date, "%Y-%m-%d %H:%M:%S");
+    if (stream.fail())
+        return 0;
+
+    date.tm_isdst = -1;
+    return mktime(&date);
+}
+
+// Seconds on the local clock from a fixed point, so two results subtract to the difference in clock time.
+static time_t LocalClockSeconds(time_t time)
+{
+    std::tm const local = Acore::Time::TimeBreakdown(time);
+    std::chrono::sys_days const date = std::chrono::year{ local.tm_year + 1900 } / (local.tm_mon + 1) / local.tm_mday;
+    return static_cast<time_t>(date.time_since_epoch().count()) * DAY + local.tm_hour * HOUR + local.tm_min * MINUTE + local.tm_sec;
+}
+
+time_t HolidayDateCalculator::LocalClockSecondsIntoWeek(time_t start, time_t now)
+{
+    // When the clock goes back, now can show an earlier time than a start from just before the change
+    time_t const seconds = (LocalClockSeconds(now) - LocalClockSeconds(start)) % WEEK;
+    return seconds < 0 ? seconds + WEEK : seconds;
+}
+
+// Unix time of a LocalClockSeconds value. Whole fields for mktime: how it treats a seconds overflow
+// around a clock change varies by platform.
+static time_t LocalClockToUnix(time_t clock)
+{
+    std::chrono::year_month_day const date{ std::chrono::sys_days{ std::chrono::days{ clock / DAY } } };
+
+    std::tm local = {};
+    local.tm_year = static_cast<int>(date.year()) - 1900;
+    local.tm_mon = static_cast<int>(static_cast<unsigned>(date.month())) - 1;
+    local.tm_mday = static_cast<int>(static_cast<unsigned>(date.day()));
+    local.tm_hour = static_cast<int>(clock % DAY / HOUR);
+    local.tm_min = static_cast<int>(clock % HOUR / MINUTE);
+    local.tm_sec = static_cast<int>(clock % MINUTE);
+    local.tm_isdst = -1;
+    return mktime(&local);
+}
+
+uint32_t HolidayDateCalculator::RealSecondsForLocalClockAdvance(time_t now, uint32_t clockSeconds)
+{
+    time_t const target = LocalClockToUnix(LocalClockSeconds(now) + clockSeconds);
+    return target > now ? static_cast<uint32_t>(target - now) : 1;
+}
+
+time_t HolidayDateCalculator::LocalClockEarlier(time_t now, uint32_t clockSeconds)
+{
+    time_t const clock = LocalClockSeconds(now) - clockSeconds;
+    time_t earlier = LocalClockToUnix(clock);
+
+    // mktime can resolve a skipped or repeated time to after the moment we want
+    while (earlier > now || LocalClockSeconds(earlier) > clock)
+        earlier -= HOUR;
+
+    return earlier;
 }
