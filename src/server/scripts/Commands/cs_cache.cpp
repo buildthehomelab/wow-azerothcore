@@ -118,7 +118,7 @@ public:
                 else
                 {
                     sCharacterCache->AddCharacterCacheEntry(cPlayer->GetGUID(), cPlayer->GetSession()->GetAccountId(), cPlayer->GetName(),
-                        cPlayer->getGender(), cPlayer->getRace(), cPlayer->getClass(), cPlayer->GetLevel());
+                        cPlayer->getGender(), cPlayer->getRace(), cPlayer->getClass(), cPlayer->GetLevel(), cPlayer->IsHomeViewer());
                 }
 
                 sCharacterCache->UpdateCharacterAccountId(cPlayer->GetGUID(), cPlayer->GetSession()->GetAccountId());

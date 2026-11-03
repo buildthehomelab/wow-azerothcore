@@ -85,6 +85,34 @@ namespace
                 return false;
         }
     }
+
+    // Evermore: what a home screen viewer's client may not ask for, whatever an addon sends. Spells
+    // and items would move it off the plot. Calendar and tickets would show other players its name.
+    // Queues need their leave-on-logout, a player hook the core skips for it: a raid browser entry
+    // left behind aborts the server. Most other opcodes need something in range, and it's rooted and
+    // alone in its phase.
+    bool IsRefusedForHomeViewer(OpcodeClient opcode)
+    {
+        switch (opcode)
+        {
+            case CMSG_CAST_SPELL:
+            case CMSG_USE_ITEM:
+            case CMSG_OPEN_ITEM:
+            case CMSG_CALENDAR_ADD_EVENT:
+            case CMSG_CALENDAR_COPY_EVENT:
+            case CMSG_CALENDAR_EVENT_INVITE:
+            case CMSG_GMTICKET_CREATE:
+            case CMSG_LFG_JOIN:
+            case CMSG_SEARCH_LFG_JOIN:
+            case CMSG_BATTLEMASTER_JOIN:
+            case CMSG_BATTLEMASTER_JOIN_ARENA:
+            case CMSG_BATTLEFIELD_MGR_QUEUE_INVITE_RESPONSE:
+            case CMSG_BATTLEFIELD_MGR_ENTRY_INVITE_RESPONSE:
+                return true;
+            default:
+                return false;
+        }
+    }
 }
 
 bool MapSessionFilter::Process(WorldPacket* packet)
@@ -482,6 +510,9 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     }
                     else if (_player->IsInWorld())
                     {
+                        if (_player->IsHomeViewer() && IsRefusedForHomeViewer(opcode))
+                            break;
+
                         if (!sScriptMgr->CanPacketReceive(this, *packet))
                             break;
 

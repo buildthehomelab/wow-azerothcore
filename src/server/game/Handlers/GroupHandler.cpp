@@ -79,8 +79,8 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recvData)
     Player* invitingPlayer = GetPlayer();
     Player* invitedPlayer = ObjectAccessor::FindPlayerByName(membername, false);
 
-    // no player or cheat self-invite
-    if (!invitedPlayer || invitedPlayer == invitingPlayer)
+    // no player or cheat self-invite; Evermore: a home screen viewer invites nobody
+    if (!invitedPlayer || invitedPlayer == invitingPlayer || invitingPlayer->IsHomeViewer())
     {
         SendPartyResult(PARTY_OP_INVITE, membername, ERR_BAD_PLAYER_NAME_S);
         return;
