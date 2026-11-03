@@ -76,6 +76,7 @@ enum PlayerHook
     PLAYERHOOK_ON_SPELL_CAST,
     PLAYERHOOK_ON_LOAD_FROM_DB,
     PLAYERHOOK_ON_LOGIN,
+    PLAYERHOOK_ON_HOME_VIEWER_LOGIN,
     PLAYERHOOK_ON_BEFORE_LOGOUT,
     PLAYERHOOK_ON_LOGOUT,
     PLAYERHOOK_CAN_MARK_ACCOUNT_OFFLINE,
@@ -357,6 +358,10 @@ public:
 
     // Called when a player logs in.
     virtual void OnPlayerLogin(Player* /*player*/) { }
+
+    // Evermore: the account's home screen viewer logs in, before it joins the map. The other player
+    // hooks a login or logout runs (OnPlayerLogin and so on) don't fire for a viewer.
+    virtual void OnPlayerHomeViewerLogin(Player* /*player*/) { }
 
     // Called before the player is logged out
     virtual void OnPlayerBeforeLogout(Player* /*player*/) { }

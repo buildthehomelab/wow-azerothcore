@@ -865,7 +865,8 @@ void WorldSession::LogoutPlayer(bool save, bool redirecting)
         if (!redirecting)
         {
             //! Broadcast a logout message to the player's friends
-            sSocialMgr->SendFriendStatus(_player, FRIEND_OFFLINE, _player->GetGUID(), true);
+            if (!_player->IsHomeViewer())
+                sSocialMgr->SendFriendStatus(_player, FRIEND_OFFLINE, _player->GetGUID(), true);
             sSocialMgr->RemovePlayerSocial(_player->GetGUID());
 
             //! Call script hook before deletion

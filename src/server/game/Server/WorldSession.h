@@ -52,6 +52,10 @@ class Unit;
 class Warden;
 class WorldPacket;
 class WorldSocket;
+
+// Evermore: low byte bits of the character list's marker (Player::BuildEnumData).
+constexpr uint32 HOME_MARKER_ENTER = 0x40;
+constexpr uint32 HOME_MARKER_VIEWER = 0x80;
 class AsynchPetSummon;
 struct AreaTableEntry;
 struct AuctionEntry;
@@ -1221,6 +1225,11 @@ public:                                                 // opcodes handlers
      */
 
     QueryCallbackProcessor& GetQueryProcessor() { return _queryProcessor; }
+
+    // Evermore: the home screen. What the next character list makes the glue screen do by itself:
+    // enter the world as this character, or stay on the screen.
+    void SetHomeEnter(ObjectGuid::LowType guid) { _homeEnter = guid; }
+    void SetHomeStay() { _homeStay = true; }
     TransactionCallback& AddTransactionCallback(TransactionCallback&& callback);
     SQLQueryHolderCallback& AddQueryHolderCallback(SQLQueryHolderCallback&& callback);
     void ProcessQueryCallbacks();
@@ -1289,6 +1298,9 @@ private:
     // this stores the GUIDs of the characters who can login
     // characters who failed on Player::BuildEnumData shouldn't login
     GuidSet _legitCharacters;
+    ObjectGuid::LowType _homeEnter{0};
+    ObjectGuid::LowType _homeViewer{0};                 // the viewer in the last character list
+    bool _homeStay{false};
 
     ObjectGuid::LowType m_GUIDLow;                     // set logined or recently logout player (while m_playerRecentlyLogout set)
     Player* _player;

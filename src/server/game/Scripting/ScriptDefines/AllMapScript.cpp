@@ -18,6 +18,7 @@
 #include "AllMapScript.h"
 #include "BattlegroundMapScript.h"
 #include "InstanceMapScript.h"
+#include "Player.h"
 #include "PlayerScript.h"
 #include "ScriptMgr.h"
 #include "ScriptMgrMacros.h"
@@ -194,12 +195,16 @@ void ScriptMgr::OnPlayerEnterMap(Map* map, Player* player)
     ASSERT(map);
     ASSERT(player);
 
-    CALL_ENABLED_HOOKS(AllMapScript, ALLMAPHOOK_ON_PLAYER_ENTER_ALL, script->OnPlayerEnterAll(map, player));
-
-    ExecuteScript<PlayerScript>([=](PlayerScript* script)
+    // Evermore: the home screen's viewer is nobody playing (Player::IsHomeViewer).
+    if (!player->IsHomeViewer())
     {
-        script->OnPlayerMapChanged(player);
-    });
+        CALL_ENABLED_HOOKS(AllMapScript, ALLMAPHOOK_ON_PLAYER_ENTER_ALL, script->OnPlayerEnterAll(map, player));
+
+        ExecuteScript<PlayerScript>([=](PlayerScript* script)
+        {
+            script->OnPlayerMapChanged(player);
+        });
+    }
 
     ForeachMaps<WorldMapScript>(map,
     [&](WorldMapScript* script)

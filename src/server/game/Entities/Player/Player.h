@@ -1140,7 +1140,7 @@ public:
     void RemovePlayerFlag(PlayerFlags flags) { RemoveFlag(PLAYER_FLAGS, flags); }
     void ReplaceAllPlayerFlags(PlayerFlags flags) { SetUInt32Value(PLAYER_FLAGS, flags); }
 
-    static bool BuildEnumData(PreparedQueryResult result, WorldPacket* data);
+    static bool BuildEnumData(PreparedQueryResult result, WorldPacket* data, uint32 homeBits = 0);
 
     [[nodiscard]] bool IsClass(Classes playerClass, ClassContext context = CLASS_CONTEXT_NONE) const override;
 
@@ -1189,6 +1189,10 @@ public:
     [[nodiscard]] bool IsAcceptGroupInvites() const { return !(m_ExtraFlags & PLAYER_EXTRA_DECLINE_GROUP_INVITES); }
     void SetAcceptGroupInvites(bool on) { if (on) m_ExtraFlags &= ~PLAYER_EXTRA_DECLINE_GROUP_INVITES; else m_ExtraFlags |= PLAYER_EXTRA_DECLINE_GROUP_INVITES; }
     [[nodiscard]] bool IsGameMaster() const { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }
+    // Evermore: the account's home screen viewer (characters.home_viewer), not a character anyone
+    // plays: scripts' player hooks skip it (ScriptMgr) and it never shows as online.
+    [[nodiscard]] bool IsHomeViewer() const { return _homeViewer; }
+    void SetHomeViewer() { _homeViewer = true; }
     [[nodiscard]] bool CanBeGameMaster() const;
     void SetGameMaster(bool on);
     [[nodiscard]] bool isGMChat() const { return m_ExtraFlags & PLAYER_EXTRA_GM_CHAT; }
@@ -2929,6 +2933,7 @@ protected:
     JoinedChannelsList m_channels;
 
     uint8 m_cinematic;
+    bool _homeViewer{false};
 
     TradeData* m_trade;
 

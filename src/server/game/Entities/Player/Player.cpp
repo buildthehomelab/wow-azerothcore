@@ -1152,7 +1152,7 @@ void Player::RemoveRestState()
     RemovePlayerFlag(PLAYER_FLAGS_RESTING);
 }
 
-bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
+bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data, uint32 homeBits)
 {
     //             0               1                2                3                 4                  5                 6               7
     //    "SELECT characters.guid, characters.name, characters.race, characters.class, characters.gender, characters.skin, characters.face, characters.hairStyle,
@@ -1162,8 +1162,8 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
     //    guild_member.guildid, characters.playerFlags, characters.at_login, character_pet.entry, character_pet.modelid, character_pet.level, characters.equipmentCache, character_banned.guid,
     //    24                      25                                                    26                    27
     //    characters.extra_flags, MAX(character_queststatus_rewarded.quest) in the era range, account_warband.camp, characters.favourite,
-    //    28                     29
-    //    characters.challenges, character_declinedname.genitive
+    //    28                     29                      30
+    //    characters.challenges, characters.home_viewer, character_declinedname.genitive
 
     Field* fields = result->Fetch();
 
@@ -1235,7 +1235,7 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
         charFlags |= CHARACTER_FLAG_LOCKED_BY_BILLING;
     if (sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED))
     {
-        if (!fields[29].Get<std::string>().empty())
+        if (!fields[30].Get<std::string>().empty())
             charFlags |= CHARACTER_FLAG_DECLINED;
     }
     else
@@ -1288,7 +1288,9 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
     // challenge the same way: Boaring Adventure running in 12 (finished: 12 and 13), Exhaustion in
     // 14 (and 15). characters.challenges keeps the running ones in its low 16 bits and the ended
     // ones in its high 16. Bit 31 stays clear: the Evermore Wow.exe returns the dword as an 11th
-    // value of the glue screen's GetCharacterInfo, a Lua number.
+    // value of the glue screen's GetCharacterInfo, a Lua number. Bits 6 and 7 are the home screen's
+    // (WorldSession::HandleCharEnum): 6 enter the world as this one by itself, 7 the account's
+    // viewer, which the screen doesn't show. Eras stop at 19 + 1.
     uint32 eraMarker = 0;
     if (uint32 eraQuestBase = sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE))
     {
@@ -1308,6 +1310,7 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
             eraMarker |= ((running >> (7 + extra)) & 1) << (12 + 2 * extra);
             eraMarker |= ((ended >> (7 + extra)) & 1) << (13 + 2 * extra);
         }
+        eraMarker |= homeBits;
     }
 
     std::vector<std::string_view> equipment = Acore::Tokenize(fields[22].Get<std::string_view>(), ' ', false);
@@ -15387,7 +15390,8 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, m_Played_time[PLAYED_TIME_TOTAL]);
         stmt->SetData(index++, m_Played_time[PLAYED_TIME_LEVEL]);
         stmt->SetData(index++, finiteAlways(_restBonus));
-        stmt->SetData(index++, uint32(GameTime::GetGameTime().count()));
+        // Evermore: "the last character played" must never mean the home screen viewer.
+        stmt->SetData(index++, IsHomeViewer() ? uint32(0) : uint32(GameTime::GetGameTime().count()));
         stmt->SetData(index++,  (HasPlayerFlag(PLAYER_FLAGS_RESTING) ? 1 : 0));
         //save, far from tavern/city
         //save, but in tavern/city
@@ -15457,7 +15461,7 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, _innTriggerId);
         stmt->SetData(index++, m_extraBonusTalentCount);
 
-        stmt->SetData(index++, IsInWorld() && !GetSession()->PlayerLogout() ? 1 : 0);
+        stmt->SetData(index++, IsInWorld() && !GetSession()->PlayerLogout() && !IsHomeViewer() ? 1 : 0);
         // Index
         stmt->SetData(index++, GetGUID().GetRawValue());
     }

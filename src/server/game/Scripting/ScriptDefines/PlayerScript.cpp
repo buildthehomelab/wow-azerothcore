@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Player.h"
 #include "PlayerScript.h"
 #include "ScriptMgr.h"
 #include "ScriptMgrMacros.h"
@@ -209,6 +210,9 @@ void ScriptMgr::OnPlayerSpellCast(Player* player, Spell* spell, bool skipCheck)
 
 void ScriptMgr::OnPlayerBeforeUpdate(Player* player, uint32 p_time)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_BEFORE_UPDATE, script->OnPlayerBeforeUpdate(player, p_time));
 }
 
@@ -219,21 +223,38 @@ void ScriptMgr::OnPlayerAfterUpdate(Player* player, uint32 p_time)
 
 void ScriptMgr::OnPlayerUpdate(Player* player, uint32 p_time)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_UPDATE, script->OnPlayerUpdate(player, p_time));
+}
+
+void ScriptMgr::OnPlayerHomeViewerLogin(Player* player)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_HOME_VIEWER_LOGIN, script->OnPlayerHomeViewerLogin(player));
 }
 
 void ScriptMgr::OnPlayerLogin(Player* player)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_LOGIN, script->OnPlayerLogin(player));
 }
 
 void ScriptMgr::OnPlayerLoadFromDB(Player* player)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_LOAD_FROM_DB, script->OnPlayerLoadFromDB(player));
 }
 
 void ScriptMgr::OnPlayerBeforeLogout(Player* player)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_BEFORE_LOGOUT, script->OnPlayerBeforeLogout(player));
 }
 
@@ -244,6 +265,9 @@ bool ScriptMgr::OnPlayerCanMarkAccountOffline(ObjectGuid guid, uint32 accountId)
 
 void ScriptMgr::OnPlayerLogout(Player* player)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_LOGOUT, script->OnPlayerLogout(player));
 }
 
@@ -254,6 +278,9 @@ void ScriptMgr::OnPlayerCreate(Player* player)
 
 void ScriptMgr::OnPlayerSave(Player* player)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_SAVE, script->OnPlayerSave(player));
 }
 
@@ -274,11 +301,17 @@ void ScriptMgr::OnPlayerBindToInstance(Player* player, Difficulty difficulty, ui
 
 void ScriptMgr::OnPlayerUpdateZone(Player* player, uint32 newZone, uint32 newArea)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_UPDATE_ZONE, script->OnPlayerUpdateZone(player, newZone, newArea));
 }
 
 void ScriptMgr::OnPlayerUpdateArea(Player* player, uint32 oldArea, uint32 newArea)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_UPDATE_AREA, script->OnPlayerUpdateArea(player, oldArea, newArea));
 }
 
@@ -424,6 +457,9 @@ bool ScriptMgr::OnPlayerBeforeOpenItem(Player* player, Item* item)
 
 void ScriptMgr::OnPlayerFirstLogin(Player* player)
 {
+    if (player->IsHomeViewer())
+        return;
+
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_FIRST_LOGIN, script->OnPlayerFirstLogin(player));
 }
 
