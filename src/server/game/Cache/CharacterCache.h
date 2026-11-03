@@ -37,6 +37,7 @@ struct CharacterCacheEntry
     ObjectGuid::LowType GuildId;
     std::array<uint32, MAX_ARENA_SLOT> ArenaTeamId;
     ObjectGuid GroupGuid;
+    bool HomeViewer = false;    // Evermore: characters.home_viewer isn't 0
 };
 
 class AC_GAME_API CharacterCache
@@ -49,7 +50,7 @@ class AC_GAME_API CharacterCache
         void LoadCharacterCacheStorage();
         void RefreshCacheEntry(uint32 lowGuid);
 
-        void AddCharacterCacheEntry(ObjectGuid const& guid, uint32 accountId, std::string const& name, uint8 gender, uint8 race, uint8 playerClass, uint8 level);
+        void AddCharacterCacheEntry(ObjectGuid const& guid, uint32 accountId, std::string const& name, uint8 gender, uint8 race, uint8 playerClass, uint8 level, bool homeViewer = false);
         void DeleteCharacterCacheEntry(ObjectGuid const& guid, std::string const& name);
 
         void UpdateCharacterData(ObjectGuid const& guid, std::string const& name, Optional<uint8> gender = {}, Optional<uint8> race = {});
@@ -71,6 +72,7 @@ class AC_GAME_API CharacterCache
         [[nodiscard]] uint32 GetCharacterAccountIdByGuid(ObjectGuid guid) const;
         [[nodiscard]] uint32 GetCharacterAccountIdByName(std::string const& name) const;
         [[nodiscard]] uint8 GetCharacterLevelByGuid(ObjectGuid guid) const;
+        [[nodiscard]] bool IsHomeViewer(ObjectGuid guid) const;
         [[nodiscard]] ObjectGuid::LowType GetCharacterGuildIdByGuid(ObjectGuid guid) const;
         [[nodiscard]] uint32 GetCharacterArenaTeamIdByGuid(ObjectGuid guid, uint8 type) const;
         [[nodiscard]] ObjectGuid GetCharacterGroupGuidByGuid(ObjectGuid guid) const;

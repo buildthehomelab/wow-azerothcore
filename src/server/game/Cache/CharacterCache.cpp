@@ -65,7 +65,7 @@ void CharacterCache::LoadCharacterCacheStorage()
     _characterCacheStore.clear();
     uint32 oldMSTime = getMSTime();
 
-    QueryResult result = CharacterDatabase.Query("SELECT guid, name, account, race, gender, class, level FROM characters");
+    QueryResult result = CharacterDatabase.Query("SELECT guid, name, account, race, gender, class, level, home_viewer FROM characters");
     if (!result)
     {
         LOG_INFO("server.loading", "No character name data loaded, empty query!");
@@ -76,7 +76,7 @@ void CharacterCache::LoadCharacterCacheStorage()
     {
         Field* fields = result->Fetch();
         AddCharacterCacheEntry(ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>()) /*guid*/, fields[2].Get<uint32>() /*account*/, fields[1].Get<std::string>() /*name*/,
-            fields[4].Get<uint8>() /*gender*/, fields[3].Get<uint8>() /*race*/, fields[5].Get<uint8>() /*class*/, fields[6].Get<uint8>() /*level*/);
+            fields[4].Get<uint8>() /*gender*/, fields[3].Get<uint8>() /*race*/, fields[5].Get<uint8>() /*class*/, fields[6].Get<uint8>() /*level*/, fields[7].Get<uint8>() != 0 /*home_viewer*/);
     } while (result->NextRow());
 
     sMailMgr->LoadMailCounts();
@@ -87,7 +87,7 @@ void CharacterCache::LoadCharacterCacheStorage()
 
 void CharacterCache::RefreshCacheEntry(uint32 lowGuid)
 {
-    QueryResult result = CharacterDatabase.Query("SELECT guid, name, account, race, gender, class, level FROM characters WHERE guid = {}", lowGuid);
+    QueryResult result = CharacterDatabase.Query("SELECT guid, name, account, race, gender, class, level, home_viewer FROM characters WHERE guid = {}", lowGuid);
     if (!result)
     {
         return;
@@ -97,7 +97,7 @@ void CharacterCache::RefreshCacheEntry(uint32 lowGuid)
     {
         Field* fields = result->Fetch();
         DeleteCharacterCacheEntry(ObjectGuid::Create<HighGuid::Player>(lowGuid), fields[1].Get<std::string>());
-        AddCharacterCacheEntry(ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>()) /*guid*/, fields[2].Get<uint32>() /*account*/, fields[1].Get<std::string>() /*name*/, fields[4].Get<uint8>() /*gender*/, fields[3].Get<uint8>() /*race*/, fields[5].Get<uint8>() /*class*/, fields[6].Get<uint8>() /*level*/);
+        AddCharacterCacheEntry(ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>()) /*guid*/, fields[2].Get<uint32>() /*account*/, fields[1].Get<std::string>() /*name*/, fields[4].Get<uint8>() /*gender*/, fields[3].Get<uint8>() /*race*/, fields[5].Get<uint8>() /*class*/, fields[6].Get<uint8>() /*level*/, fields[7].Get<uint8>() != 0 /*home_viewer*/);
     } while (result->NextRow());
 
     sMailMgr->RecountMailCount(lowGuid);
@@ -106,7 +106,7 @@ void CharacterCache::RefreshCacheEntry(uint32 lowGuid)
 /*
 Modifying functions
 */
-void CharacterCache::AddCharacterCacheEntry(ObjectGuid const& guid, uint32 accountId, std::string const& name, uint8 gender, uint8 race, uint8 playerClass, uint8 level)
+void CharacterCache::AddCharacterCacheEntry(ObjectGuid const& guid, uint32 accountId, std::string const& name, uint8 gender, uint8 race, uint8 playerClass, uint8 level, bool homeViewer /*= false*/)
 {
     CharacterCacheEntry& data = _characterCacheStore[guid];
     data.Guid = guid;
@@ -116,6 +116,7 @@ void CharacterCache::AddCharacterCacheEntry(ObjectGuid const& guid, uint32 accou
     data.Sex = gender;
     data.Class = playerClass;
     data.Level = level;
+    data.HomeViewer = homeViewer;
     data.GuildId = 0;                           // Will be set in guild loading or guild setting
     for (uint8 i = 0; i < MAX_ARENA_SLOT; ++i)
     {
@@ -274,6 +275,12 @@ ObjectGuid CharacterCache::GetCharacterGuidByName(std::string const& name) const
     }
 
     return ObjectGuid::Empty;
+}
+
+bool CharacterCache::IsHomeViewer(ObjectGuid guid) const
+{
+    auto itr = _characterCacheStore.find(guid);
+    return itr != _characterCacheStore.end() && itr->second.HomeViewer;
 }
 
 bool CharacterCache::GetCharacterNameByGuid(ObjectGuid guid, std::string& name) const

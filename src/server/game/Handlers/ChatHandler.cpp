@@ -316,6 +316,11 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
         }
     }
 
+    // Evermore: nobody can reach a viewer, so it doesn't reach anyone. It sends commands (above) and
+    // nothing else, so no module's chat hook mistakes it for someone playing.
+    if (sender->IsHomeViewer())
+        return;
+
     // do message validity checks
     if (lang != LANG_ADDON)
     {

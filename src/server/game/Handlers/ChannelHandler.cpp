@@ -31,6 +31,11 @@ void WorldSession::HandleJoinChannel(WorldPacket& recvPacket)
     recvPacket >> channelId >> unknown1 >> unknown2 >> channelName >> password;
 
     LOG_DEBUG("chat.system", "CMSG_JOIN_CHANNEL {} Channel: {}, unk1: {}, unk2: {}, channel: {}, password: {}", GetPlayerInfo(), channelId, unknown1, unknown2, channelName, password);
+
+    // Evermore: a home screen viewer stays out of channels, where joining would announce its name.
+    if (GetPlayer()->IsHomeViewer())
+        return;
+
     if (channelId)
     {
         ChatChannelsEntry const* channel = sChatChannelsStore.LookupEntry(channelId);

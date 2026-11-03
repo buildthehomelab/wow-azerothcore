@@ -294,8 +294,10 @@ void ObjectAccessor::SaveAllPlayers()
 
 Player* ObjectAccessor::FindPlayerByName(std::string const& name, bool checkInWorld)
 {
+    // Evermore: a home screen viewer can't be found by name, so nothing a player types reaches it
+    // or shows that its account is online.
     if (Player* player = PlayerNameMapHolder::Find(name))
-        if (!checkInWorld || player->IsInWorld())
+        if ((!checkInWorld || player->IsInWorld()) && !player->IsHomeViewer())
             return player;
 
     return nullptr;

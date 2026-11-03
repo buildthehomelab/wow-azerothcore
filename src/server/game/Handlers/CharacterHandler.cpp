@@ -665,6 +665,14 @@ void WorldSession::HandleCharDeleteOpcode(WorldPacket& recvData)
         return;
     }
 
+    // Evermore: the list never offers a home screen viewer, so this is a crafted packet.
+    if (sCharacterCache->IsHomeViewer(guid))
+    {
+        sScriptMgr->OnPlayerFailedDelete(guid, initAccountId);
+        SendCharDelete(CHAR_DELETE_FAILED);
+        return;
+    }
+
     uint32 accountId = 0;
     uint8 level = 0;
     std::string name;
