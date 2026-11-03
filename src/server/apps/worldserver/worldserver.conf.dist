@@ -2081,10 +2081,23 @@ CharacterSelect.EraQuestBase = 0
 #    CharacterSelect.EraQuests
 #        Description: How many quest IDs from CharacterSelect.EraQuestBase are eras. Keep it to
 #                     the era quests: mod-individual-progression's states are 66000-66018, and its
-#                     PvP rank quests (66101-66114) must not count.
+#                     PvP rank quests (66101-66114) must not count. At most 63: the value above bit 5
+#                     of what the character list sends is the home screen's.
 #        Default:     19
 
 CharacterSelect.EraQuests = 19
+
+#
+#    CharacterSelect.HomeScreen
+#        Description: Lets accounts that have a home screen viewer (characters.home_viewer) land
+#                     on it after logging in, instead of staying on character select. The list
+#                     marks the viewer and who to enter in the era value, so this needs
+#                     CharacterSelect.EraQuestBase and a character select screen that reads them.
+#                     Off, viewers aren't sent at all and every account gets character select.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+CharacterSelect.HomeScreen = 0
 
 #
 #    HeroicCharactersPerRealm

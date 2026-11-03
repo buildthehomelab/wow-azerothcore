@@ -224,6 +224,26 @@ void WorldSession::HandleCharEnum(PreparedQueryResult result)
 
     data << num;
 
+    // Evermore: the home screen. A viewer (characters.home_viewer 1) comes last in the list, marked
+    // so the glue screen hides it, and with the feature off or the viewer parked (2) not at all.
+    // Who the screen enters by itself is decided here: the character Play chose (once), or nobody if
+    // the player asked for this screen (until a character logs in), or else the viewer.
+    bool const homeScreen = sWorld->getBoolConfig(CONFIG_CHARACTER_SELECT_HOME_SCREEN)
+        && sWorld->getIntConfig(CONFIG_CHARACTER_SELECT_ERA_QUEST_BASE);
+    ObjectGuid::LowType homeEnter = _homeEnter;
+    bool const homeStay = _homeStay;
+    _homeEnter = 0;
+    _homeViewer = 0;
+
+    // Back after a disconnect with a character still in the world, on an account with a viewer: the
+    // way back in is that character, since entering the viewer would log it out. Where the core can't
+    // reattach (a kicked session, EnableLoginAfterDC off) the viewer is entered as usual.
+    if (homeScreen && !homeEnter && !homeStay && sWorld->getBoolConfig(CONFIG_ENABLE_LOGIN_AFTER_DC))
+        if (WorldSession* offline = sWorldSessionMgr->FindOfflineSession(GetAccountId()))
+            if (offline->_homeViewer && !offline->IsKicked())
+                if (Player* stillInWorld = offline->GetPlayer())
+                    homeEnter = stillInWorld->GetGUID().GetCounter();
+
     _legitCharacters.clear();
     if (result)
     {
@@ -231,7 +251,21 @@ void WorldSession::HandleCharEnum(PreparedQueryResult result)
         {
             ObjectGuid guid = ObjectGuid::Create<HighGuid::Player>((*result)[0].Get<uint32>());
             LOG_DEBUG("network.opcode", "Loading char {} from account {}.", guid.ToString(), GetAccountId());
-            if (Player::BuildEnumData(result, &data))
+
+            uint8 const viewer = (*result)[29].Get<uint8>();
+            if (viewer && (viewer != 1 || !homeScreen))
+                continue;
+
+            uint32 homeBits = 0;
+            if (viewer)
+            {
+                _homeViewer = guid.GetCounter();
+                homeBits |= HOME_MARKER_VIEWER;
+            }
+            if (homeScreen && (guid.GetCounter() == homeEnter || (viewer && !homeEnter && !homeStay)))
+                homeBits |= HOME_MARKER_ENTER;
+
+            if (Player::BuildEnumData(result, &data, homeBits))
             {
                 _legitCharacters.insert(guid);
                 ++num;
@@ -804,6 +838,10 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     ObjectGuid playerGuid = holder.GetGuid();
 
     Player* pCurrChar = new Player(this);
+    _homeStay = false;
+    bool const homeViewer = _homeViewer && playerGuid.GetCounter() == _homeViewer;
+    if (homeViewer)
+        pCurrChar->SetHomeViewer();
     // for send server info and strings (config)
     ChatHandler chH = ChatHandler(pCurrChar->GetSession());
 
@@ -907,6 +945,10 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     // Xinef: moved this from below
     ObjectAccessor::AddObject(pCurrChar);
 
+    // Before the map: the client never sees the viewer anywhere but in its own phase.
+    if (homeViewer)
+        sScriptMgr->OnPlayerHomeViewerLogin(pCurrChar);
+
     if (!pCurrChar->GetMap()->AddPlayerToMap(pCurrChar) || !pCurrChar->CheckInstanceLoginValid())
     {
         AreaTriggerTeleport const* at = sObjectMgr->GetGoBackTrigger(pCurrChar->GetMapId());
@@ -921,7 +963,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
     pCurrChar->SendInitialPacketsAfterAddToMap();
 
-    if (!sToCloud9Sidecar->ClusterModeEnabled())
+    if (!sToCloud9Sidecar->ClusterModeEnabled() && !homeViewer)
     {
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_ONLINE);
         stmt->SetData(0, pCurrChar->GetGUID().GetCounter());
@@ -962,7 +1004,8 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
         }
 
     // friend status
-    sSocialMgr->SendFriendStatus(pCurrChar, FRIEND_ONLINE, pCurrChar->GetGUID(), true);
+    if (!homeViewer)
+        sSocialMgr->SendFriendStatus(pCurrChar, FRIEND_ONLINE, pCurrChar->GetGUID(), true);
 
     // Place character in world (and load zone) before some object loading
     pCurrChar->LoadCorpse(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CORPSE_LOCATION));
@@ -1129,6 +1172,9 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     }
 
     sScriptMgr->OnPlayerLogin(pCurrChar);
+
+    if (homeViewer)
+        pCurrChar->SetControlled(true, UNIT_STATE_ROOT);
 
     if (pCurrChar->HasAtLoginFlag(AT_LOGIN_FIRST))
     {
