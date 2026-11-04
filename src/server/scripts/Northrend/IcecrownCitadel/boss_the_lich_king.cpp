@@ -734,7 +734,7 @@ public:
             {
                 case ACTION_RESTORE_LIGHT:
                     me->GetMap()->SetZoneOverrideLight(AREA_THE_FROZEN_THRONE, 0, 5s);
-                    me->GetMap()->SetZoneWeather(AREA_THE_FROZEN_THRONE, WEATHER_STATE_FINE, 0.5f);
+                    me->GetMap()->SetZoneWeather(AREA_THE_FROZEN_THRONE, WEATHER_STATE_FINE, 0.0f);
                     break;
                 case ACTION_START_ATTACK:
                     events.ScheduleEvent(EVENT_START_ATTACK, 5250ms);
