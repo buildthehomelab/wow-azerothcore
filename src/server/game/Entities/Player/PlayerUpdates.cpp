@@ -2360,8 +2360,12 @@ void Player::ProcessTerrainStatusUpdate()
                 m_MirrorTimerFlags &= ~UNDERWATER_INWATER;
         }
 
-        // Fatigue bar state (if not on flight path or transport)
-        if ((liquidData.Flags & MAP_LIQUID_TYPE_DARK_WATER) && !IsInFlight() && !GetTransport())
+        // Fatigue bar state (if not on flight path or transport). Only in the water itself: Evermore's
+        // client has land from WoW Forever over what the server's map still calls deep ocean, and the
+        // status there is above water.
+        if ((liquidData.Flags & MAP_LIQUID_TYPE_DARK_WATER)
+            && (liquidData.Status & (LIQUID_MAP_WATER_WALK | LIQUID_MAP_IN_WATER | LIQUID_MAP_UNDER_WATER))
+            && !IsInFlight() && !GetTransport())
         {
             // Exclude also uncontrollable vehicles
             Vehicle*                vehicle     = GetVehicle();
